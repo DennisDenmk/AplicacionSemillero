@@ -95,12 +95,12 @@ export default function ClasesRegistro({
   // --- CLASSES CRUD LÓGICA ---
   const handleCreateClass = (e) => {
     e.preventDefault();
-    if (!classForm.nombre || !classForm.grado) {
-      showToast('Todos los campos son requeridos', 'warning');
+    if (!classForm.nombre) {
+      showToast('El nombre del aula es requerido', 'warning');
       return;
     }
 
-    api.createClase(classForm.nombre, classForm.grado)
+    api.createClase(classForm.nombre, classForm.grado || 'General')
       .then(newClase => {
         showToast('Aula creada exitosamente', 'success');
         setShowAddClassModal(false);
@@ -789,16 +789,7 @@ export default function ClasesRegistro({
                   required
                 />
               </div>
-              <div className="input-group">
-                <label>Grado / Nivel de Desarrollo Operacional:</label>
-                <input 
-                  type="text" 
-                  value={classForm.grado} 
-                  onChange={(e) => setClassForm(prev => ({ ...prev, grado: e.target.value }))}
-                  placeholder="Ej: 4 años (Pre-operacional básico)" 
-                  required
-                />
-              </div>
+
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddClassModal(false)}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">Registrar Aula</button>

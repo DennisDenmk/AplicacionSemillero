@@ -201,6 +201,17 @@ BEGIN
         ALTER TABLE "autoevaluacion" ADD CONSTRAINT "fk_autoevaluacion_docente" FOREIGN KEY ("docente_id") REFERENCES "docentes" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
     END IF;
 END $$;
+
+-- Migrations: add columns if they don't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='monitoreo' AND column_name='unidad_id') THEN
+        ALTER TABLE "monitoreo" ADD COLUMN "unidad_id" uuid;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='autoevaluacion' AND column_name='alumno_id') THEN
+        ALTER TABLE "autoevaluacion" ADD COLUMN "alumno_id" uuid;
+    END IF;
+END $$;
 `;
 
 
@@ -996,46 +1007,59 @@ app.post('/api/evaluaciones', async (req, res) => {
 // NUEVAS APIs — RF-D06 Ficha de Monitoreo Individual
 // ============================================================
 
+// ── Monitoreo: per alumno + per tarea (unidad) ──────────────────────────────
 app.get('/api/monitoreo/:alumnoId', async (req, res) => {
   const { alumnoId } = req.params;
+  const { unidadId } = req.query;
   if (!isValidUuid(alumnoId)) return res.status(400).json({ error: 'alumnoId inválido' });
   try {
-    const r = await pool.query('SELECT * FROM monitoreo WHERE alumno_id=$1', [alumnoId]);
+    let r;
+    if (unidadId && isValidUuid(unidadId)) {
+      r = await pool.query('SELECT * FROM monitoreo WHERE alumno_id=$1 AND unidad_id=$2', [alumnoId, unidadId]);
+    } else {
+      r = await pool.query('SELECT * FROM monitoreo WHERE alumno_id=$1 AND unidad_id IS NULL', [alumnoId]);
+    }
     res.json(r.rows.length > 0 ? mapMonitoreo(r.rows[0]) : null);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/monitoreo', async (req, res) => {
-  const { alumnoId, clasificacionObs, clasificacionApoyo, seriacionObs, seriacionApoyo, asimilacionObs, asimilacionApoyo, justificacionObs, justificacionApoyo, autorregulacionObs, autorregulacionApoyo } = req.body;
+  const { alumnoId, unidadId, clasificacionObs, clasificacionApoyo, seriacionObs, seriacionApoyo, asimilacionObs, asimilacionApoyo, justificacionObs, justificacionApoyo, autorregulacionObs, autorregulacionApoyo } = req.body;
   if (!alumnoId || !isValidUuid(alumnoId)) return res.status(400).json({ error: 'alumnoId inválido' });
+  const unidad = unidadId && isValidUuid(unidadId) ? unidadId : null;
   try {
-    const exists = await pool.query('SELECT id FROM monitoreo WHERE alumno_id=$1', [alumnoId]);
+    const exists = await pool.query(
+      'SELECT id FROM monitoreo WHERE alumno_id=$1 AND (unidad_id=$2 OR ($2 IS NULL AND unidad_id IS NULL))',
+      [alumnoId, unidad]
+    );
     if (exists.rows.length > 0) {
       const r = await pool.query(
-        `UPDATE monitoreo SET clasificacion_obs=$1,clasificacion_apoyo=$2,seriacion_obs=$3,seriacion_apoyo=$4,asimilacion_obs=$5,asimilacion_apoyo=$6,justificacion_obs=$7,justificacion_apoyo=$8,autorregulacion_obs=$9,autorregulacion_apoyo=$10,updated_at=now() WHERE alumno_id=$11 RETURNING *`,
-        [clasificacionObs,clasificacionApoyo,seriacionObs,seriacionApoyo,asimilacionObs,asimilacionApoyo,justificacionObs,justificacionApoyo,autorregulacionObs,autorregulacionApoyo,alumnoId]
+        `UPDATE monitoreo SET clasificacion_obs=$1,clasificacion_apoyo=$2,seriacion_obs=$3,seriacion_apoyo=$4,asimilacion_obs=$5,asimilacion_apoyo=$6,justificacion_obs=$7,justificacion_apoyo=$8,autorregulacion_obs=$9,autorregulacion_apoyo=$10,updated_at=now() WHERE alumno_id=$11 AND (unidad_id=$12 OR ($12 IS NULL AND unidad_id IS NULL)) RETURNING *`,
+        [clasificacionObs,clasificacionApoyo,seriacionObs,seriacionApoyo,asimilacionObs,asimilacionApoyo,justificacionObs,justificacionApoyo,autorregulacionObs,autorregulacionApoyo,alumnoId,unidad]
       );
       return res.json(mapMonitoreo(r.rows[0]));
     }
     const r = await pool.query(
-      `INSERT INTO monitoreo (alumno_id,clasificacion_obs,clasificacion_apoyo,seriacion_obs,seriacion_apoyo,asimilacion_obs,asimilacion_apoyo,justificacion_obs,justificacion_apoyo,autorregulacion_obs,autorregulacion_apoyo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [alumnoId,clasificacionObs,clasificacionApoyo,seriacionObs,seriacionApoyo,asimilacionObs,asimilacionApoyo,justificacionObs,justificacionApoyo,autorregulacionObs,autorregulacionApoyo]
+      `INSERT INTO monitoreo (alumno_id,unidad_id,clasificacion_obs,clasificacion_apoyo,seriacion_obs,seriacion_apoyo,asimilacion_obs,asimilacion_apoyo,justificacion_obs,justificacion_apoyo,autorregulacion_obs,autorregulacion_apoyo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [alumnoId,unidad,clasificacionObs,clasificacionApoyo,seriacionObs,seriacionApoyo,asimilacionObs,asimilacionApoyo,justificacionObs,justificacionApoyo,autorregulacionObs,autorregulacionApoyo]
     );
     res.status(201).json(mapMonitoreo(r.rows[0]));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ============================================================
-// NUEVAS APIs — RF-D07 Autoevaluación Docente
-// ============================================================
-
+// ── Autoevaluación: per alumno + per tarea ──────────────────────────────────
 app.get('/api/autoevaluacion', async (req, res) => {
   const userId = req.headers['user-id'];
-  const { claseId } = req.query;
+  const { claseId, alumnoId, unidadId } = req.query;
   if (!userId || !isValidUuid(userId)) return res.status(401).json({ error: 'No autorizado' });
   if (!claseId || !isValidUuid(claseId)) return res.json([]);
   try {
-    const r = await pool.query('SELECT * FROM autoevaluacion WHERE docente_id=$1 AND clase_id=$2 ORDER BY created_at DESC', [userId, claseId]);
+    let r;
+    if (alumnoId && isValidUuid(alumnoId) && unidadId && isValidUuid(unidadId)) {
+      r = await pool.query('SELECT * FROM autoevaluacion WHERE docente_id=$1 AND clase_id=$2 AND alumno_id=$3 AND unidad_id=$4 ORDER BY created_at DESC LIMIT 1', [userId, claseId, alumnoId, unidadId]);
+    } else {
+      r = await pool.query('SELECT * FROM autoevaluacion WHERE docente_id=$1 AND clase_id=$2 ORDER BY created_at DESC', [userId, claseId]);
+    }
     res.json(r.rows.map(mapAutoevaluacion));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1043,15 +1067,62 @@ app.get('/api/autoevaluacion', async (req, res) => {
 app.post('/api/autoevaluacion', async (req, res) => {
   const userId = req.headers['user-id'];
   if (!userId || !isValidUuid(userId)) return res.status(401).json({ error: 'No autorizado' });
-  const { claseId, unidadId, respuestas } = req.body;
+  const { claseId, unidadId, alumnoId, respuestas } = req.body;
   if (!claseId || !respuestas) return res.status(400).json({ error: 'claseId y respuestas son requeridos' });
   if (!isValidUuid(claseId)) return res.status(400).json({ error: 'claseId inválido' });
+  const unidad = unidadId && isValidUuid(unidadId) ? unidadId : null;
+  const alumno = alumnoId && isValidUuid(alumnoId) ? alumnoId : null;
   try {
+    // Upsert: one autoeval per (docente, alumno, unidad)
+    const exists = await pool.query(
+      'SELECT id FROM autoevaluacion WHERE docente_id=$1 AND clase_id=$2 AND alumno_id=$3 AND (unidad_id=$4 OR ($4 IS NULL AND unidad_id IS NULL))',
+      [userId, claseId, alumno, unidad]
+    );
+    if (exists.rows.length > 0) {
+      const r = await pool.query(
+        'UPDATE autoevaluacion SET respuestas=$1 WHERE id=$2 RETURNING *',
+        [JSON.stringify(respuestas), exists.rows[0].id]
+      );
+      return res.json(mapAutoevaluacion(r.rows[0]));
+    }
     const r = await pool.query(
-      `INSERT INTO autoevaluacion (docente_id,unidad_id,clase_id,respuestas) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [userId, unidadId&&isValidUuid(unidadId)?unidadId:null, claseId, JSON.stringify(respuestas)]
+      `INSERT INTO autoevaluacion (docente_id,unidad_id,alumno_id,clase_id,respuestas) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [userId, unidad, alumno, claseId, JSON.stringify(respuestas)]
     );
     res.status(201).json(mapAutoevaluacion(r.rows[0]));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Matriz consolidada: estado de evaluaciones por tarea ────────────────────
+app.get('/api/evaluaciones-matriz/:claseId/:unidadId', async (req, res) => {
+  const userId = req.headers['user-id'];
+  const { claseId, unidadId } = req.params;
+  if (!isValidUuid(claseId) || !isValidUuid(unidadId)) return res.status(400).json({ error: 'IDs inválidos' });
+  try {
+    const alumnos = await pool.query('SELECT id, nombre FROM alumnos WHERE clase_id=$1 ORDER BY nombre', [claseId]);
+    const evaluaciones = await pool.query(
+      'SELECT alumno_id FROM evaluaciones WHERE clase_id=$1 AND unidad_id=$2', [claseId, unidadId]
+    );
+    const monitoreos = await pool.query(
+      'SELECT alumno_id FROM monitoreo WHERE unidad_id=$1', [unidadId]
+    );
+    const autoevals = await pool.query(
+      'SELECT alumno_id FROM autoevaluacion WHERE clase_id=$1 AND unidad_id=$2 AND docente_id=$3',
+      [claseId, unidadId, userId]
+    );
+
+    const evalSet = new Set(evaluaciones.rows.map(r => r.alumno_id));
+    const monSet  = new Set(monitoreos.rows.map(r => r.alumno_id));
+    const autoSet = new Set(autoevals.rows.map(r => r.alumno_id));
+
+    const matriz = alumnos.rows.map(a => ({
+      alumnoId:   a.id,
+      nombre:     a.nombre,
+      rubrica:    evalSet.has(a.id),
+      monitoreo:  monSet.has(a.id),
+      autoeval:   autoSet.has(a.id),
+    }));
+    res.json(matriz);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

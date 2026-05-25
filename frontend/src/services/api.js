@@ -127,8 +127,9 @@ export const api = {
   },
 
   // --- MONITOREO (RF-D06) ---
-  async getMonitoreo(alumnoId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/monitoreo/${alumnoId}`, { headers: getHeaders() }));
+  async getMonitoreo(alumnoId, unidadId) {
+    const q = unidadId ? `?unidadId=${unidadId}` : '';
+    return handleResponse(await fetch(`${BASE_URL}/api/monitoreo/${alumnoId}${q}`, { headers: getHeaders() }));
   },
   async saveMonitoreo(data) {
     return handleResponse(await fetch(`${BASE_URL}/api/monitoreo`, {
@@ -137,13 +138,21 @@ export const api = {
   },
 
   // --- AUTOEVALUACIÓN (RF-D07) ---
-  async getAutoevaluaciones(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/autoevaluacion?claseId=${claseId}`, { headers: getHeaders() }));
+  async getAutoevaluaciones(claseId, alumnoId, unidadId) {
+    let q = `claseId=${claseId}`;
+    if (alumnoId) q += `&alumnoId=${alumnoId}`;
+    if (unidadId) q += `&unidadId=${unidadId}`;
+    return handleResponse(await fetch(`${BASE_URL}/api/autoevaluacion?${q}`, { headers: getHeaders() }));
   },
   async createAutoevaluacion(data) {
     return handleResponse(await fetch(`${BASE_URL}/api/autoevaluacion`, {
       method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
     }));
+  },
+
+  // --- MATRIZ DE EVALUACIONES ---
+  async getMatriz(claseId, unidadId) {
+    return handleResponse(await fetch(`${BASE_URL}/api/evaluaciones-matriz/${claseId}/${unidadId}`, { headers: getHeaders() }));
   },
 
   // --- TAREAS (legacy) ---
