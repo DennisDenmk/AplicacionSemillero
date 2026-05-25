@@ -1,0 +1,16 @@
+{
+  "name": "plataforma-educativa-docente-backend",
+  "version": "1.0.0",
+  "description": "Backend API REST y persistencia para la plataforma educativa del maestro",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.21.0"
+  }
+}

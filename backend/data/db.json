@@ -1,0 +1,134 @@
+{
+  "users": [
+    {
+      "id": "user-docente-1",
+      "email": "docente@escuela.com",
+      "password": "password123",
+      "nombre": "Prof. Ana María"
+    }
+  ],
+  "clases": [
+    {
+      "id": "clase-1",
+      "userId": "user-docente-1",
+      "nombre": "Los Exploradores",
+      "grado": "4 años"
+    },
+    {
+      "id": "clase-2",
+      "userId": "user-docente-1",
+      "nombre": "Los Creadores",
+      "grado": "5 años"
+    },
+    {
+      "id": "clase-1779657290731",
+      "userId": "user-docente-1",
+      "nombre": "Curso",
+      "grado": "5 años (Pre-operacional avanzado)"
+    }
+  ],
+  "alumnos": [
+    {
+      "id": "alumno-1",
+      "claseId": "clase-1",
+      "nombre": "Mateo Silva",
+      "padreCorreo": "padre.mateo@gmail.com"
+    },
+    {
+      "id": "alumno-2",
+      "claseId": "clase-1",
+      "nombre": "Sofía Castro",
+      "padreCorreo": "padre.sofia@gmail.com"
+    },
+    {
+      "id": "alumno-3",
+      "claseId": "clase-1",
+      "nombre": "Valentina Mendoza",
+      "padreCorreo": "madre.valen@gmail.com"
+    },
+    {
+      "id": "alumno-4",
+      "claseId": "clase-2",
+      "nombre": "Thiago Rojas",
+      "padreCorreo": "padre.thiago@gmail.com"
+    },
+    {
+      "id": "alumno-5",
+      "claseId": "clase-2",
+      "nombre": "Lucía Fernández",
+      "padreCorreo": "madre.lucia@gmail.com"
+    }
+  ],
+  "tareas": [
+    {
+      "id": "tarea-1",
+      "claseId": "clase-1",
+      "titulo": "Frutas Saludables vs Comida Chatarra",
+      "imagenUrl": "/uploads/tarea_frutas.svg",
+      "actividadTipo": "CLASIFICAR",
+      "detalles": {
+        "categorias": "Frutas (Saludables) vs Dulces/Frituras (No saludables)",
+        "preguntas": "¿Cuáles de estos alimentos te ayudan a crecer fuerte? ¿Cuáles pueden hacer doler tus dientes?",
+        "respuestaEsperada": "El niño debe señalar la manzana y el plátano como saludables, y el caramelo y la dona como no saludables."
+      },
+      "materiales": [
+        {
+          "id": "mat-1",
+          "nombre": "Lámina interactiva de alimentos",
+          "archivoUrl": "/uploads/lamina_alimentos.pdf"
+        }
+      ]
+    },
+    {
+      "id": "tarea-2",
+      "claseId": "clase-1",
+      "titulo": "Mi Rutina de Mañana",
+      "imagenUrl": "/uploads/tarea_rutina.svg",
+      "actividadTipo": "ORDENAR",
+      "detalles": {
+        "elementos": "1. Despertarse, 2. Cepillarse los dientes, 3. Desayunar, 4. Ir al colegio",
+        "presentacion": "Utilizar tarjetas impresas para que el niño las ordene sobre la mesa de izquierda a derecha."
+      },
+      "materiales": []
+    },
+    {
+      "id": "tarea-1779657566207",
+      "claseId": "clase-2",
+      "titulo": "Tarea",
+      "imagenUrl": "/uploads/file-1779657529660-602262698.png",
+      "actividadTipo": "CLASIFICAR",
+      "detalles": {
+        "categorias": "Rojo",
+        "preguntas": "A",
+        "respuestaEsperada": "A"
+      },
+      "materiales": [
+        {
+          "id": "mat-1779657538010",
+          "nombre": "lamina_alimentos.pdf",
+          "archivoUrl": "/uploads/file-1779657538008-724834186.pdf"
+        }
+      ]
+    }
+  ],
+  "notas": [
+    {
+      "alumnoId": "alumno-1",
+      "tareaId": "tarea-1",
+      "valor": 9,
+      "comentario": "Identificó muy rápido las frutas, dudó un poco con la dona."
+    },
+    {
+      "alumnoId": "alumno-2",
+      "tareaId": "tarea-1",
+      "valor": 10,
+      "comentario": "Clasificó perfectamente todos los elementos y explicó bien por qué."
+    },
+    {
+      "alumnoId": "alumno-3",
+      "tareaId": "tarea-1",
+      "valor": 8,
+      "comentario": "Necesitó un poco de guía para reconocer que los caramelos no son saludables."
+    }
+  ]
+}

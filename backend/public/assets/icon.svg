@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  
+  <!-- Educational Hat & Glow -->
+  <g filter="url(#shadow)">
+    <!-- Book/Notebook base -->
+    <rect x="156" y="240" width="200" height="120" rx="15" fill="#ffffff" />
+    <line x1="256" y1="240" x2="256" y2="360" stroke="#cbd5e1" stroke-width="4" />
+    <!-- Book Lines -->
+    <line x1="180" y1="270" x2="230" y2="270" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+    <line x1="180" y1="300" x2="230" y2="300" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+    <line x1="180" y1="330" x2="220" y2="330" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+
+    <line x1="282" y1="270" x2="332" y2="270" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+    <line x1="282" y1="300" x2="332" y2="300" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+    <line x1="282" y1="330" x2="322" y2="330" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" />
+    
+    <!-- Graduation Cap floating above -->
+    <path d="M256 120 L376 168 L256 216 L136 168 Z" fill="#f8fafc" />
+    <path d="M256 120 L376 168 L256 216 Z" fill="#e2e8f0" />
+    <path d="M196 192 L196 240 C196 256, 316 256, 316 240 L316 192" fill="none" stroke="#f8fafc" stroke-width="12" stroke-linecap="round" />
+    <path d="M376 168 L376 230 C376 235, 366 245, 360 245" fill="none" stroke="#ffd700" stroke-width="6" stroke-linecap="round" />
+    <circle cx="360" cy="245" r="8" fill="#ffd700" />
+  </g>
+  
+  <!-- Subtle Piaget reference/sparkle -->
+  <path d="M380 120 L390 135 L405 135 L395 145 L400 160 L380 150 L360 160 L365 145 L355 135 L370 135 Z" fill="#ffd700" />
+  <path d="M130 360 L135 370 L145 370 L137 377 L140 387 L130 380 L120 387 L123 377 L115 370 L125 370 Z" fill="#ffd700" />
+</svg>
