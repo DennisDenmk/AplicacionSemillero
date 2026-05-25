@@ -522,14 +522,10 @@ export default function ClasesRegistro({
                   id: 'unidades', icon: <BookOpen size={22} />, color: '#0891b2',
                   title: 'Unidades Didácticas',
                   description: 'Cree y gestione unidades con actividades, objetivos y criterios.',
-                },
-                {
-                  id: 'notas', icon: <Grid size={22} />, color: '#7c3aed',
-                  title: 'Matriz de Notas',
-                  description: 'Registre calificaciones cuantitativas por alumno y ficha.',
-                },
+                }
               ]}
             />
+            </div>
           )}
 
           {/* ── TAB: ALUMNOS ── */}
@@ -566,7 +562,6 @@ export default function ClasesRegistro({
                       <tr>
                         <th>Nombre del Niño</th>
                         <th>Correo del Padre/Tutor</th>
-                        <th style={{ width: '15%' }} className="text-right">Rendimiento (Promedio)</th>
                         <th style={{ width: '15%' }} className="text-right">Acciones</th>
                       </tr>
                     </thead>
@@ -575,9 +570,6 @@ export default function ClasesRegistro({
                         <tr key={a.id}>
                           <td style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{a.nombre}</td>
                           <td>{a.padreCorreo}</td>
-                          <td className="text-right" style={{ fontWeight: '800', color: 'var(--accent-primary)' }}>
-                            {getStudentGpa(a.id)}
-                          </td>
                           <td className="text-right">
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                               <button className="btn-icon-only btn-sm" onClick={() => handleEditAlumnoClick(a)} title="Editar">
@@ -705,69 +697,7 @@ export default function ClasesRegistro({
             </div>
           )}
 
-          {/* ── TAB: MATRIZ DE NOTAS ── */}
-          {activeTab === 'notas' && (
-            <div className="sub-view">
-              <SubViewHeader onBack={() => setActiveTab(null)} title="Matriz de Notas" subtitle="Registro unificado de calificaciones por alumno y ficha" icon={<Grid size={18} />} />
 
-              {loadingNotas || loadingAlumnos || loadingTareas ? (
-                <div className="loading-container">
-                  <Loader className="spinner" />
-                </div>
-              ) : alumnos.length === 0 || tareas.length === 0 ? (
-                <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#ffffff' }}>
-                  <Grid size={40} className="text-muted" style={{ margin: '0 auto 1rem' }} />
-                  <h4 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>Matriz Incompleta</h4>
-                  <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
-                    Para habilitar el llenado interactivo de notas, debe registrar al menos **un estudiante** y **una ficha didáctica** de apoyo.
-                  </p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <div className="double-scroll">
-                    <table className="data-table matrix-table">
-                      <thead>
-                        <tr>
-                          <th>Niño \ Ficha Didáctica</th>
-                          {tareas.map(t => (
-                            <th key={t.id} className="task-header-cell" title={t.titulo}>
-                              {t.titulo}
-                            </th>
-                          ))}
-                          <th style={{ width: '12%', textAlign: 'right' }}>GPA</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {alumnos.map(alumno => (
-                          <tr key={alumno.id}>
-                            <td style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{alumno.nombre}</td>
-                            {tareas.map(tarea => {
-                              const noteObj = notas.find(n => n.alumnoId === alumno.id && n.tareaId === tarea.id);
-                              const noteValue = noteObj ? noteObj.valor.toFixed(1) : '';
-                              return (
-                                <td 
-                                  key={tarea.id} 
-                                  className="grade-cell"
-                                  onClick={() => handleOpenGradeModal(alumno, tarea)}
-                                >
-                                  <div className={`grade-box ${getGradeBoxClass(noteValue)}`}>
-                                    {noteValue || '-'}
-                                  </div>
-                                </td>
-                              );
-                            })}
-                            <td className="gpa-cell">
-                              {getStudentGpa(alumno.id)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -777,8 +707,8 @@ export default function ClasesRegistro({
 
       {/* 1. Modal: Add/Edit Student */}
       {showAddAlumnoModal && (
-        <div className="modal-overlay">
-          <div className="modal-box animate-slide-up">
+        <div className="modal-overlay" onClick={() => setShowAddAlumnoModal(false)}>
+          <div className="modal-box animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
                 {alumnoForm.id ? 'Modificar Registro de Niño' : 'Registrar Nuevo Niño en Estudio'}
@@ -840,8 +770,8 @@ export default function ClasesRegistro({
 
       {/* 2. Modal: Create Class */}
       {showAddClassModal && (
-        <div className="modal-overlay">
-          <div className="modal-box animate-slide-up">
+        <div className="modal-overlay" onClick={() => setShowAddClassModal(false)}>
+          <div className="modal-box animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Crear Aula de Investigación</h3>
               <button className="btn-close-modal" onClick={() => setShowAddClassModal(false)}>
@@ -880,8 +810,8 @@ export default function ClasesRegistro({
 
       {/* 3. Modal: Add Task (Nueva Ficha Didáctica) */}
       {showAddTaskModal && (
-        <div className="modal-overlay">
-          <div className="modal-box large-modal animate-slide-up">
+        <div className="modal-overlay" onClick={() => setShowAddTaskModal(false)}>
+          <div className="modal-box large-modal animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Registrar Material / Ficha en el Catálogo</h3>
               <button className="btn-close-modal" onClick={() => setShowAddTaskModal(false)}>
@@ -1081,63 +1011,6 @@ export default function ClasesRegistro({
         </div>
       )}
 
-      {/* 4. Modal: Localized Calificar Form */}
-      {showGradeModal && (
-        <div className="modal-overlay">
-          <div className="modal-box animate-slide-up">
-            <div className="modal-header">
-              <h3 className="modal-title">Evaluar Estudiante</h3>
-              <button className="btn-close-modal" onClick={() => setShowGradeModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveGrade} className="modal-form">
-              <div className="evaluation-target-info">
-                <h4 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>{selectedGradeCell.alumnoNombre}</h4>
-                <p className="text-muted" style={{ fontSize: '0.78rem', marginTop: '0.15rem' }}>
-                  Ficha Didáctica: <strong style={{ color: 'var(--text-white)' }}>{selectedGradeCell.tareaTitulo}</strong>
-                </p>
-              </div>
-
-              <div className="input-group">
-                <label>Calificación Numérica (Estadio Operatorio - Escala 0 a 10):</label>
-                <div className="grade-input-container">
-                  <input 
-                    type="number" 
-                    value={selectedGradeCell.valor}
-                    onChange={(e) => setSelectedGradeCell(prev => ({ ...prev, valor: e.target.value }))}
-                    min="0" 
-                    max="10" 
-                    step="0.5" 
-                    placeholder="9.5" 
-                    required
-                  />
-                  <span className="max-grade">/ 10.0</span>
-                </div>
-                <span className="input-hint">8.5-10: Logrado, 5.0-8.0: En Proceso, 0-4.5: Iniciado.</span>
-              </div>
-
-              <div className="input-group">
-                <label>Comentarios Cualitativos y Observación de Errores:</label>
-                <textarea 
-                  value={selectedGradeCell.comentario}
-                  onChange={(e) => setSelectedGradeCell(prev => ({ ...prev, comentario: e.target.value }))}
-                  placeholder="Registre cómo resolvió el niño las variantes de lotería o seriación y las preguntas de mediación que requirió..."
-                  style={{ minHeight: '100px' }}
-                />
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowGradeModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">
-                  <ShieldCheck size={16} />
-                  Registrar Calificación
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

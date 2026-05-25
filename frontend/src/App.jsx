@@ -371,8 +371,20 @@ export default function App() {
     <div className="app-container">
       <div className="dashboard-layout">
         
+        {/* SIDEBAR MOBILE OVERLAY */}
+        {isSidebarActive && (
+          <div 
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+              background: 'rgba(0,0,0,0.4)', zIndex: 99,
+              backdropFilter: 'blur(2px)'
+            }}
+            onClick={() => setIsSidebarActive(false)}
+          />
+        )}
+        
         {/* SIDEBAR NAVIGATION */}
-        <aside className={`sidebar ${isSidebarActive ? 'active' : ''}`}>
+        <aside className={`sidebar ${isSidebarActive ? 'active' : ''}`} style={{ zIndex: 100 }}>
           <div className="sidebar-brand">
             <svg className="brand-icon" viewBox="0 0 512 512">
               <rect width="512" height="512" rx="128" fill="url(#grad-sidebar)" />
