@@ -1101,19 +1101,23 @@ app.get('/api/evaluaciones-matriz/:claseId/:unidadId', async (req, res) => {
   try {
     const alumnos = await pool.query('SELECT id, nombre FROM alumnos WHERE clase_id=$1 ORDER BY nombre', [claseId]);
     const evaluaciones = await pool.query(
-      'SELECT alumno_id FROM evaluaciones WHERE clase_id=$1 AND unidad_id=$2', [claseId, unidadId]
+      'SELECT DISTINCT alumno_id FROM evaluaciones WHERE clase_id=$1 AND unidad_id=$2', [claseId, unidadId]
     );
     const monitoreos = await pool.query(
-      'SELECT alumno_id FROM monitoreo WHERE unidad_id=$1', [unidadId]
+      'SELECT DISTINCT alumno_id FROM monitoreo WHERE unidad_id=$1 AND alumno_id IS NOT NULL', [unidadId]
     );
-    const autoevals = await pool.query(
-      'SELECT alumno_id FROM autoevaluacion WHERE clase_id=$1 AND unidad_id=$2 AND docente_id=$3',
-      [claseId, unidadId, userId]
-    );
+    
+    let autoSet = new Set();
+    if (userId && isValidUuid(userId)) {
+      const autoevals = await pool.query(
+        'SELECT DISTINCT alumno_id FROM autoevaluacion WHERE clase_id=$1 AND unidad_id=$2 AND docente_id=$3 AND alumno_id IS NOT NULL',
+        [claseId, unidadId, userId]
+      );
+      autoSet = new Set(autoevals.rows.map(r => r.alumno_id));
+    }
 
     const evalSet = new Set(evaluaciones.rows.map(r => r.alumno_id));
     const monSet  = new Set(monitoreos.rows.map(r => r.alumno_id));
-    const autoSet = new Set(autoevals.rows.map(r => r.alumno_id));
 
     const matriz = alumnos.rows.map(a => ({
       alumnoId:   a.id,
