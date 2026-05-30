@@ -23,6 +23,11 @@ export default function Seguimiento({ activeClassId, showToast }) {
   const [filtroUnidad, setFiltroUnidad] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState('');
+  const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
+  const [notaSeguimiento, setNotaSeguimiento] = useState('');
+  const [savingNota, setSavingNota] = useState(false);
+
   const load = useCallback(() => {
     if (!activeClassId) return;
     setLoading(true);
@@ -41,10 +46,50 @@ export default function Seguimiento({ activeClassId, showToast }) {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!selectedAlumnoId) {
+      setNotaSeguimiento('');
+      return;
+    }
+    setNotaSeguimiento('');
+    api.getMonitoreo(selectedAlumnoId, filtroUnidad || null)
+      .then(m => {
+        if (m && m.notaSeguimientoObs) {
+          setNotaSeguimiento(m.notaSeguimientoObs);
+        } else {
+          setNotaSeguimiento('');
+        }
+      })
+      .catch(() => setNotaSeguimiento(''));
+  }, [selectedAlumnoId, filtroUnidad]);
+
+  const handleSaveNotaSeguimiento = async () => {
+    if (!selectedAlumnoId) return;
+    setSavingNota(true);
+    try {
+      await api.saveMonitoreo({
+        alumnoId: selectedAlumnoId,
+        unidadId: filtroUnidad || null,
+        notaSeguimientoObs: notaSeguimiento
+      });
+      showToast('Nota de seguimiento guardada', 'success');
+    } catch (e) {
+      showToast(e.message || 'Error al guardar la nota', 'danger');
+    } finally {
+      setSavingNota(false);
+    }
+  };
+
   // ── Helpers ────────────────────────────────────────────────────────────────
   const evalsByAlumno = alumnoId =>
     evaluaciones
-      .filter(e => e.alumnoId === alumnoId && (!filtroUnidad || e.unidadId === filtroUnidad))
+      .filter(e => {
+        if (e.alumnoId !== alumnoId) return false;
+        if (filtroUnidad && e.unidadId !== filtroUnidad) return false;
+        if (filtroFechaDesde && new Date(e.createdAt) < new Date(filtroFechaDesde + 'T00:00:00')) return false;
+        if (filtroFechaHasta && new Date(e.createdAt) > new Date(filtroFechaHasta + 'T23:59:59')) return false;
+        return true;
+      })
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   const latestRubrica = alumnoId => {
@@ -53,9 +98,12 @@ export default function Seguimiento({ activeClassId, showToast }) {
   };
 
   const groupStats = () => {
-    const evsFiltradas = filtroUnidad
-      ? evaluaciones.filter(e => e.unidadId === filtroUnidad)
-      : evaluaciones;
+    const evsFiltradas = evaluaciones.filter(e => {
+      if (filtroUnidad && e.unidadId !== filtroUnidad) return false;
+      if (filtroFechaDesde && new Date(e.createdAt) < new Date(filtroFechaDesde + 'T00:00:00')) return false;
+      if (filtroFechaHasta && new Date(e.createdAt) > new Date(filtroFechaHasta + 'T23:59:59')) return false;
+      return true;
+    });
     const latestPerAlumno = {};
     evsFiltradas.forEach(ev => {
       if (!latestPerAlumno[ev.alumnoId] || new Date(ev.createdAt) > new Date(latestPerAlumno[ev.alumnoId].createdAt))
@@ -115,6 +163,35 @@ export default function Seguimiento({ activeClassId, showToast }) {
           {unidades.map(u => <option key={u.id} value={u.id}>{u.titulo}</option>)}
         </select>
       </div>
+      <div style={{ flex: '0 0 160px' }}>
+        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Desde</label>
+        <input 
+          type="date" 
+          className="select-input" 
+          value={filtroFechaDesde} 
+          onChange={e => setFiltroFechaDesde(e.target.value)} 
+          style={{ height: '38px', boxSizing: 'border-box' }}
+        />
+      </div>
+      <div style={{ flex: '0 0 160px' }}>
+        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem', textTransform: 'uppercase' }}>Hasta</label>
+        <input 
+          type="date" 
+          className="select-input" 
+          value={filtroFechaHasta} 
+          onChange={e => setFiltroFechaHasta(e.target.value)} 
+          style={{ height: '38px', boxSizing: 'border-box' }}
+        />
+      </div>
+      {(filtroFechaDesde || filtroFechaHasta || filtroUnidad) && (
+        <button 
+          className="btn btn-secondary btn-sm" 
+          onClick={() => { setFiltroFechaDesde(''); setFiltroFechaHasta(''); setFiltroUnidad(''); }}
+          style={{ height: '38px', display: 'flex', alignItems: 'center' }}
+        >
+          ✕ Limpiar filtros
+        </button>
+      )}
     </div>
   );
 
@@ -206,6 +283,33 @@ export default function Seguimiento({ activeClassId, showToast }) {
               </div>
             );
           })}
+        </div>
+
+        {/* Nota de Seguimiento */}
+        <div style={{ padding: '1.25rem', borderRadius: '14px', background: 'rgba(248,250,252,0.6)', border: '1px solid rgba(148,163,184,0.1)', marginBottom: '1.25rem' }}>
+          <p style={{ fontWeight: 700, color: 'var(--text-white)', fontSize: '0.88rem', margin: '0 0 0.75rem' }}>📝 Nota de Seguimiento Rápida</p>
+          <textarea
+            className="select-input"
+            value={notaSeguimiento}
+            onChange={e => setNotaSeguimiento(e.target.value)}
+            placeholder="Escriba observaciones generales o notas de apoyo pedagógico para este estudiante..."
+            style={{ width: '100%', minHeight: 80, resize: 'vertical', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 10, padding: '0.6rem 0.8rem', fontSize: '0.85rem', marginBottom: '0.75rem', outline: 'none' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button 
+              onClick={handleSaveNotaSeguimiento} 
+              className="btn btn-primary btn-sm" 
+              disabled={savingNota}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              {savingNota ? (
+                <>
+                  <Loader className="spinner" size={14} style={{ display: 'inline', animation: 'spin 1s linear infinite' }} />
+                  Guardando...
+                </>
+              ) : 'Guardar Nota'}
+            </button>
+          </div>
         </div>
 
         {/* Historial */}

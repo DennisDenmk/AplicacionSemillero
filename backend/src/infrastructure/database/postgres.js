@@ -146,6 +146,8 @@ CREATE TABLE IF NOT EXISTS "monitoreo" (
   "justificacion_apoyo" text,
   "autorregulacion_obs" text,
   "autorregulacion_apoyo" text,
+  "nota_seguimiento_obs" text,
+  "nota_seguimiento_apoyo" text,
   "updated_at" timestamp DEFAULT (now())
 );
 
@@ -178,6 +180,12 @@ DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='monitoreo' AND column_name='unidad_id') THEN
         ALTER TABLE "monitoreo" ADD COLUMN "unidad_id" uuid;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='monitoreo' AND column_name='nota_seguimiento_obs') THEN
+        ALTER TABLE "monitoreo" ADD COLUMN "nota_seguimiento_obs" text;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='monitoreo' AND column_name='nota_seguimiento_apoyo') THEN
+        ALTER TABLE "monitoreo" ADD COLUMN "nota_seguimiento_apoyo" text;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='autoevaluacion' AND column_name='alumno_id') THEN
         ALTER TABLE "autoevaluacion" ADD COLUMN "alumno_id" uuid;

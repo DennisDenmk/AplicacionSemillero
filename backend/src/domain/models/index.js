@@ -103,6 +103,7 @@ function mapMonitoreo(row) {
   return {
     id: row.id,
     alumnoId: row.alumno_id,
+    unidadId: row.unidad_id,
     clasificacionObs: row.clasificacion_obs,
     clasificacionApoyo: row.clasificacion_apoyo,
     seriacionObs: row.seriacion_obs,
@@ -113,6 +114,8 @@ function mapMonitoreo(row) {
     justificacionApoyo: row.justificacion_apoyo,
     autorregulacionObs: row.autorregulacion_obs,
     autorregulacionApoyo: row.autorregulacion_apoyo,
+    notaSeguimientoObs: row.nota_seguimiento_obs,
+    notaSeguimientoApoyo: row.nota_seguimiento_apoyo,
     updatedAt: row.updated_at
   };
 }

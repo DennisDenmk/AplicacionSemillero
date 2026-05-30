@@ -48,29 +48,70 @@ class MonitoreoRepository {
   async upsert(data) {
     const { alumnoId, unidadId, clasificacionObs, clasificacionApoyo, seriacionObs, seriacionApoyo,
       asimilacionObs, asimilacionApoyo, justificacionObs, justificacionApoyo,
-      autorregulacionObs, autorregulacionApoyo } = data;
+      autorregulacionObs, autorregulacionApoyo, notaSeguimientoObs, notaSeguimientoApoyo } = data;
     const unidad = unidadId && isValidUuid(unidadId) ? unidadId : null;
 
     const exists = await pool.query(
-      'SELECT id FROM monitoreo WHERE alumno_id=$1 AND (unidad_id=$2 OR ($2 IS NULL AND unidad_id IS NULL))',
+      'SELECT * FROM monitoreo WHERE alumno_id=$1 AND (unidad_id=$2 OR ($2 IS NULL AND unidad_id IS NULL))',
       [alumnoId, unidad]
     );
 
     if (exists.rows.length > 0) {
+      const oldRow = exists.rows[0];
       const result = await pool.query(
-        `UPDATE monitoreo SET clasificacion_obs=$1,clasificacion_apoyo=$2,seriacion_obs=$3,seriacion_apoyo=$4,asimilacion_obs=$5,asimilacion_apoyo=$6,justificacion_obs=$7,justificacion_apoyo=$8,autorregulacion_obs=$9,autorregulacion_apoyo=$10,updated_at=now() WHERE alumno_id=$11 AND (unidad_id=$12 OR ($12 IS NULL AND unidad_id IS NULL)) RETURNING *`,
-        [clasificacionObs, clasificacionApoyo, seriacionObs, seriacionApoyo, asimilacionObs,
-         asimilacionApoyo, justificacionObs, justificacionApoyo, autorregulacionObs,
-         autorregulacionApoyo, alumnoId, unidad]
+        `UPDATE monitoreo SET 
+          clasificacion_obs=$1,clasificacion_apoyo=$2,seriacion_obs=$3,seriacion_apoyo=$4,
+          asimilacion_obs=$5,asimilacion_apoyo=$6,justificacion_obs=$7,justificacion_apoyo=$8,
+          autorregulacion_obs=$9,autorregulacion_apoyo=$10,
+          nota_seguimiento_obs=$11,nota_seguimiento_apoyo=$12,
+          updated_at=now() 
+         WHERE alumno_id=$13 AND (unidad_id=$14 OR ($14 IS NULL AND unidad_id IS NULL)) RETURNING *`,
+        [
+          clasificacionObs !== undefined ? clasificacionObs : oldRow.clasificacion_obs,
+          clasificacionApoyo !== undefined ? clasificacionApoyo : oldRow.clasificacion_apoyo,
+          seriacionObs !== undefined ? seriacionObs : oldRow.seriacion_obs,
+          seriacionApoyo !== undefined ? seriacionApoyo : oldRow.seriacion_apoyo,
+          asimilacionObs !== undefined ? asimilacionObs : oldRow.asimilacion_obs,
+          asimilacionApoyo !== undefined ? asimilacionApoyo : oldRow.asimilacion_apoyo,
+          justificacionObs !== undefined ? justificacionObs : oldRow.justificacion_obs,
+          justificacionApoyo !== undefined ? justificacionApoyo : oldRow.justificacion_apoyo,
+          autorregulacionObs !== undefined ? autorregulacionObs : oldRow.autorregulacion_obs,
+          autorregulacionApoyo !== undefined ? autorregulacionApoyo : oldRow.autorregulacion_apoyo,
+          notaSeguimientoObs !== undefined ? notaSeguimientoObs : oldRow.nota_seguimiento_obs,
+          notaSeguimientoApoyo !== undefined ? notaSeguimientoApoyo : oldRow.nota_seguimiento_apoyo,
+          alumnoId, 
+          unidad
+        ]
       );
       return mapMonitoreo(result.rows[0]);
     }
 
     const result = await pool.query(
-      `INSERT INTO monitoreo (alumno_id,unidad_id,clasificacion_obs,clasificacion_apoyo,seriacion_obs,seriacion_apoyo,asimilacion_obs,asimilacion_apoyo,justificacion_obs,justificacion_apoyo,autorregulacion_obs,autorregulacion_apoyo) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [alumnoId, unidad, clasificacionObs, clasificacionApoyo, seriacionObs, seriacionApoyo,
-       asimilacionObs, asimilacionApoyo, justificacionObs, justificacionApoyo,
-       autorregulacionObs, autorregulacionApoyo]
+      `INSERT INTO monitoreo (
+        alumno_id,unidad_id,
+        clasificacion_obs,clasificacion_apoyo,
+        seriacion_obs,seriacion_apoyo,
+        asimilacion_obs,asimilacion_apoyo,
+        justificacion_obs,justificacion_apoyo,
+        autorregulacion_obs,autorregulacion_apoyo,
+        nota_seguimiento_obs,nota_seguimiento_apoyo
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [
+        alumnoId, 
+        unidad, 
+        clasificacionObs || null, 
+        clasificacionApoyo || null, 
+        seriacionObs || null, 
+        seriacionApoyo || null,
+        asimilacionObs || null, 
+        asimilacionApoyo || null, 
+        justificacionObs || null, 
+        justificacionApoyo || null,
+        autorregulacionObs || null, 
+        autorregulacionApoyo || null,
+        notaSeguimientoObs || null,
+        notaSeguimientoApoyo || null
+      ]
     );
     return mapMonitoreo(result.rows[0]);
   }
