@@ -1,47 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Home, BookOpen, Clipboard, LogOut, User, Loader, Wifi, WifiOff, Menu, X, GraduationCap, BarChart2, AlertCircle } from 'lucide-react';
-import { api } from './services/api';
+import { Home, BookOpen, Clipboard, LogOut, Loader, Wifi, WifiOff, Menu, X, BarChart2, AlertCircle } from 'lucide-react';
 
-// Importing Views
-import ClasesRegistro from './views/ClasesRegistro';
-import MarcoTeorico from './views/MarcoTeorico';
-import EvaluacionDashboard from './views/EvaluacionDashboard';
-import Seguimiento from './views/Seguimiento';
+// Application layer hooks
+import { useAuth } from './application/hooks/useAuth.js';
+import { useClases } from './application/hooks/useClases.js';
+import { useToast } from './application/hooks/useToast.js';
+
+// Presentation layer — pages (views)
+import ClasesRegistro from './presentation/pages/ClasesRegistro.jsx';
+import MarcoTeorico from './presentation/pages/MarcoTeorico.jsx';
+import EvaluacionDashboard from './presentation/pages/EvaluacionDashboard.jsx';
+import Seguimiento from './presentation/pages/Seguimiento.jsx';
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [clases, setClases] = useState([]);
-  const [activeClassId, setActiveClassId] = useState('');
-  const [currentView, setCurrentView] = useState('clases'); // clases, teorico, evaluacion
-  
-  // UI states
-  const [loading, setLoading] = useState(true);
+  const { toasts, showToast } = useToast();
+  const auth = useAuth(showToast);
+  const clasesHook = useClases(showToast);
+
+  const [currentView, setCurrentView] = useState('clases');
   const [isSidebarActive, setIsSidebarActive] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [toasts, setToasts] = useState([]);
+  const [appLoading, setAppLoading] = useState(true);
 
-  // Auth form states
-  const [authTab, setAuthTab] = useState('login'); // login, register
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({ nombre: '', email: '', password: '' });
-  const [authError, setAuthError] = useState('');
-  const [submittingAuth, setSubmittingAuth] = useState(false);
-
-  // Connection listeners
+  // Connection listeners + session restore
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      showToast('Conexión reestablecida. Trabajando en línea.', 'success');
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      showToast('Sin conexión a internet. Los cambios se guardarán localmente.', 'warning');
-    };
-
+    const handleOnline = () => { setIsOnline(true); showToast('Conexión reestablecida. Trabajando en línea.', 'success'); };
+    const handleOffline = () => { setIsOnline(false); showToast('Sin conexión a internet. Los cambios se guardarán localmente.', 'warning'); };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
-    // Register PWA Service Worker if in production/built
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -50,14 +37,12 @@ export default function App() {
       });
     }
 
-    // Verify session on startup
-    const activeUser = api.getCurrentUser();
+    const activeUser = auth.initFromSession();
     if (activeUser) {
-      setUser(activeUser);
-      loadClases(activeUser.id);
-    } else {
-      setLoading(false);
+      auth.setUser(activeUser);
+      clasesHook.loadClases(activeUser.id);
     }
+    setAppLoading(false);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -65,156 +50,35 @@ export default function App() {
     };
   }, []);
 
-  const loadClases = (userId, defaultId = null) => {
-    setLoading(true);
-    api.getClases()
-      .then(data => {
-        setClases(data);
-        // Restore active class from localStorage or select the first one
-        const cachedClassId = localStorage.getItem('activeClassId');
-        if (defaultId) {
-          setActiveClassId(defaultId);
-          localStorage.setItem('activeClassId', defaultId);
-        } else if (cachedClassId && data.some(c => c.id === cachedClassId)) {
-          setActiveClassId(cachedClassId);
-        } else if (data.length > 0) {
-          setActiveClassId(data[0].id);
-          localStorage.setItem('activeClassId', data[0].id);
-        } else {
-          setActiveClassId('');
-        }
-      })
-      .catch(err => {
-        showToast('Error al cargar aulas. Trabajando en modo local.', 'warning');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  };
-
-  const handleClassChange = (e) => {
-    const classId = e.target.value;
-    setActiveClassId(classId);
-    localStorage.setItem('activeClassId', classId);
-    showToast('Aula activa cambiada', 'success');
-  };
-
-  // Toast System
-  const showToast = (message, type = 'success') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
-  };
-
-  // Auth Operations
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    if (!loginForm.email || !loginForm.password) {
-      setAuthError('Por favor complete todos los campos');
-      return;
-    }
-
-    setSubmittingAuth(true);
-    setAuthError('');
-    
-    api.login(loginForm.email, loginForm.password)
-      .then(activeUser => {
-        setUser(activeUser);
-        showToast(`¡Bienvenida, ${activeUser.nombre}!`, 'success');
-        loadClases(activeUser.id);
-      })
-      .catch(err => {
-        setAuthError(err.message || 'Credenciales inválidas');
-      })
-      .finally(() => {
-        setSubmittingAuth(false);
-      });
-  };
-
-  const handleRegisterSubmit = (e) => {
-    e.preventDefault();
-    if (!registerForm.nombre || !registerForm.email || !registerForm.password) {
-      setAuthError('Por favor complete todos los campos');
-      return;
-    }
-
-    setSubmittingAuth(true);
-    setAuthError('');
-
-    api.register(registerForm.email, registerForm.password, registerForm.nombre)
-      .then(() => {
-        showToast('Registro exitoso. Iniciando sesión...', 'success');
-        // Auto login after register
-        return api.login(registerForm.email, registerForm.password);
-      })
-      .then(activeUser => {
-        setUser(activeUser);
-        loadClases(activeUser.id);
-      })
-      .catch(err => {
-        setAuthError(err.message || 'Error en el registro');
-      })
-      .finally(() => {
-        setSubmittingAuth(false);
-      });
-  };
-
-  const handleLogout = () => {
-    if (window.confirm('¿Está seguro de cerrar sesión?')) {
-      api.logout();
-      setUser(null);
-      setClases([]);
-      setActiveClassId('');
-      setCurrentView('clases');
-      showToast('Sesión cerrada con éxito', 'success');
-    }
-  };
-
   const handleRefreshClases = (newActiveId = null) => {
-    if (user) {
-      loadClases(user.id, newActiveId);
-    }
+    clasesHook.refreshClases(newActiveId);
   };
 
-  // Render proper sub-view based on currentView state
   const renderView = () => {
     switch (currentView) {
       case 'clases':
         return (
-          <ClasesRegistro 
-            clases={clases}
-            activeClassId={activeClassId}
-            setActiveClassId={setActiveClassId}
+          <ClasesRegistro
+            clases={clasesHook.clases}
+            activeClassId={clasesHook.activeClassId}
+            setActiveClassId={clasesHook.setActiveClassId}
             onRefreshClases={handleRefreshClases}
             showToast={showToast}
           />
         );
       case 'teorico':
         return <MarcoTeorico />;
-
       case 'evaluacion':
-        return (
-          <EvaluacionDashboard 
-            activeClassId={activeClassId}
-            showToast={showToast}
-          />
-        );
+        return <EvaluacionDashboard activeClassId={clasesHook.activeClassId} showToast={showToast} />;
       case 'seguimiento':
-        return (
-          <Seguimiento
-            activeClassId={activeClassId}
-            showToast={showToast}
-          />
-        );
+        return <Seguimiento activeClassId={clasesHook.activeClassId} showToast={showToast} />;
       default:
         return <div style={{ color: 'var(--text-white)' }}>Vista no encontrada</div>;
     }
   };
 
   // Initial loader
-  if (loading && !user) {
+  if (appLoading) {
     return (
       <div className="auth-screen">
         <div style={{ textAlign: 'center' }}>
@@ -226,8 +90,8 @@ export default function App() {
     );
   }
 
-  // AUTHENTICATION SCREEN (LOGIN / REGISTER)
-  if (!user) {
+  // AUTHENTICATION SCREEN
+  if (!auth.user) {
     return (
       <div className="auth-screen">
         <div className="auth-card">
@@ -252,55 +116,40 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid #cbd5e1', paddingBottom: '0.5rem' }}>
-            <button 
-              className={`btn btn-sm ${authTab === 'login' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => { setAuthTab('login'); setAuthError(''); }}
-              style={{ flex: 1 }}
-            >
+            <button className={`btn btn-sm ${auth.authTab === 'login' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => { auth.setAuthTab('login'); auth.setAuthError(''); }} style={{ flex: 1 }}>
               Iniciar Sesión
             </button>
-            <button 
-              className={`btn btn-sm ${authTab === 'register' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => { setAuthTab('register'); setAuthError(''); }}
-              style={{ flex: 1 }}
-            >
+            <button className={`btn btn-sm ${auth.authTab === 'register' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => { auth.setAuthTab('register'); auth.setAuthError(''); }} style={{ flex: 1 }}>
               Registrarse
             </button>
           </div>
 
-          {authError && (
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--danger)', borderRadius: '12px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {auth.authError && (
+            <div style={{ padding: '0.75rem 1rem', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)', borderRadius: '12px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <AlertCircle size={16} />
-              {authError}
+              {auth.authError}
             </div>
           )}
 
-          {/* LOGIN FORM */}
-          {authTab === 'login' && (
-            <form onSubmit={handleLoginSubmit} className="auth-form active">
+          {auth.authTab === 'login' && (
+            <form onSubmit={(e) => auth.handleLoginSubmit(e, (u) => clasesHook.loadClases(u.id))} className="auth-form active">
               <h3 className="form-title">Ingreso para Docentes</h3>
               <div className="input-group">
                 <label>Correo Electrónico:</label>
-                <input 
-                  type="email" 
-                  value={loginForm.email}
-                  onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="ejemplo@escuela.com" 
-                  required
-                />
+                <input type="email" value={auth.loginForm.email}
+                  onChange={(e) => auth.setLoginForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="ejemplo@escuela.com" required />
               </div>
               <div className="input-group">
                 <label>Contraseña:</label>
-                <input 
-                  type="password" 
-                  value={loginForm.password}
-                  onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="••••••••" 
-                  required
-                />
+                <input type="password" value={auth.loginForm.password}
+                  onChange={(e) => auth.setLoginForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="••••••••" required />
               </div>
-              <button className="btn btn-primary btn-block" type="submit" disabled={submittingAuth}>
-                {submittingAuth ? 'Accediendo...' : 'Ingresar al Entorno'}
+              <button className="btn btn-primary btn-block" type="submit" disabled={auth.submittingAuth}>
+                {auth.submittingAuth ? 'Accediendo...' : 'Ingresar al Entorno'}
               </button>
               <p style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem' }}>
                 Credenciales de prueba: <strong style={{ color: 'var(--text-white)' }}>docente@escuela.com</strong> / <strong style={{ color: 'var(--text-white)' }}>password123</strong>
@@ -308,82 +157,56 @@ export default function App() {
             </form>
           )}
 
-          {/* REGISTER FORM */}
-          {authTab === 'register' && (
-            <form onSubmit={handleRegisterSubmit} className="auth-form active">
+          {auth.authTab === 'register' && (
+            <form onSubmit={(e) => auth.handleRegisterSubmit(e, (u) => clasesHook.loadClases(u.id))} className="auth-form active">
               <h3 className="form-title">Registro de Investigador</h3>
               <div className="input-group">
                 <label>Nombre y Apellidos:</label>
-                <input 
-                  type="text" 
-                  value={registerForm.nombre}
-                  onChange={(e) => setRegisterForm(prev => ({ ...prev, nombre: e.target.value }))}
-                  placeholder="Prof. Ana María" 
-                  required
-                />
+                <input type="text" value={auth.registerForm.nombre}
+                  onChange={(e) => auth.setRegisterForm(prev => ({ ...prev, nombre: e.target.value }))}
+                  placeholder="Prof. Ana María" required />
               </div>
               <div className="input-group">
                 <label>Correo Electrónico:</label>
-                <input 
-                  type="email" 
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="ejemplo@escuela.com" 
-                  required
-                />
+                <input type="email" value={auth.registerForm.email}
+                  onChange={(e) => auth.setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="ejemplo@escuela.com" required />
               </div>
               <div className="input-group">
                 <label>Contraseña:</label>
-                <input 
-                  type="password" 
-                  value={registerForm.password}
-                  onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Mínimo 6 caracteres" 
-                  required
-                />
+                <input type="password" value={auth.registerForm.password}
+                  onChange={(e) => auth.setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Mínimo 6 caracteres" required />
               </div>
-              <button className="btn btn-primary btn-block" type="submit" disabled={submittingAuth}>
-                {submittingAuth ? 'Registrando...' : 'Completar Registro'}
+              <button className="btn btn-primary btn-block" type="submit" disabled={auth.submittingAuth}>
+                {auth.submittingAuth ? 'Registrando...' : 'Completar Registro'}
               </button>
             </form>
           )}
         </div>
 
-        {/* TOAST SYSTEM (AUTH SCREEN) */}
         {toasts.length > 0 && (
           <div className="toast-container">
-            {toasts.map(t => (
-              <div key={t.id} className={`toast toast-${t.type}`}>
-                <span>{t.message}</span>
-              </div>
-            ))}
+            {toasts.map(t => <div key={t.id} className={`toast toast-${t.type}`}><span>{t.message}</span></div>)}
           </div>
         )}
       </div>
     );
   }
 
-  // MAIN DASHBOARD LAYOUT
-  const userInitials = user.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  const activeClassObj = clases.find(c => c.id === activeClassId);
+  // MAIN DASHBOARD
+  const userInitials = auth.user.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  const activeClassObj = clasesHook.clases.find(c => c.id === clasesHook.activeClassId);
 
   return (
     <div className="app-container">
       <div className="dashboard-layout">
-        
-        {/* SIDEBAR MOBILE OVERLAY */}
+
         {isSidebarActive && (
-          <div 
-            style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-              background: 'rgba(0,0,0,0.4)', zIndex: 99,
-              backdropFilter: 'blur(2px)'
-            }}
-            onClick={() => setIsSidebarActive(false)}
-          />
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', zIndex: 99, backdropFilter: 'blur(2px)' }}
+            onClick={() => setIsSidebarActive(false)} />
         )}
-        
-        {/* SIDEBAR NAVIGATION */}
+
         <aside className={`sidebar ${isSidebarActive ? 'active' : ''}`} style={{ zIndex: 100 }}>
           <div className="sidebar-brand">
             <svg className="brand-icon" viewBox="0 0 512 512">
@@ -402,88 +225,53 @@ export default function App() {
             <span className="brand-text text-white">EduDocente</span>
           </div>
 
-          {/* Navigation Links */}
           <nav className="sidebar-nav">
-            <button 
-              className={`btn nav-item ${currentView === 'clases' ? 'active' : ''}`}
-              onClick={() => { setCurrentView('clases'); setIsSidebarActive(false); }}
-            >
-              <Home size={18} />
-              Mis Aulas & Registro
+            <button className={`btn nav-item ${currentView === 'clases' ? 'active' : ''}`}
+              onClick={() => { setCurrentView('clases'); setIsSidebarActive(false); }}>
+              <Home size={18} /> Mis Aulas &amp; Registro
             </button>
-
-            <button 
-              className={`btn nav-item ${currentView === 'teorico' ? 'active' : ''}`}
-              onClick={() => { setCurrentView('teorico'); setIsSidebarActive(false); }}
-            >
-              <BookOpen size={18} />
-              Marco Teórico
+            <button className={`btn nav-item ${currentView === 'teorico' ? 'active' : ''}`}
+              onClick={() => { setCurrentView('teorico'); setIsSidebarActive(false); }}>
+              <BookOpen size={18} /> Marco Teórico
             </button>
-
-
-
-            <button 
-              className={`btn nav-item ${!activeClassId ? 'nav-class-locked' : ''} ${currentView === 'evaluacion' ? 'active' : ''}`}
-              onClick={() => { 
-                if (!activeClassId) {
-                  showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning');
-                  return;
-                }
-                setCurrentView('evaluacion'); 
-                setIsSidebarActive(false); 
-              }}
-              title={!activeClassId ? "Bloqueado hasta seleccionar aula" : ""}
-            >
-              <Clipboard size={18} />
-              Rúbricas & Evaluación
+            <button className={`btn nav-item ${!clasesHook.activeClassId ? 'nav-class-locked' : ''} ${currentView === 'evaluacion' ? 'active' : ''}`}
+              onClick={() => {
+                if (!clasesHook.activeClassId) { showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning'); return; }
+                setCurrentView('evaluacion'); setIsSidebarActive(false);
+              }}>
+              <Clipboard size={18} /> Rúbricas &amp; Evaluación
             </button>
-
-            <button 
-              className={`btn nav-item ${!activeClassId ? 'nav-class-locked' : ''} ${currentView === 'seguimiento' ? 'active' : ''}`}
-              onClick={() => { 
-                if (!activeClassId) {
-                  showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning');
-                  return;
-                }
-                setCurrentView('seguimiento'); 
-                setIsSidebarActive(false); 
-              }}
-              title={!activeClassId ? "Bloqueado hasta seleccionar aula" : ""}
-            >
-              <BarChart2 size={18} />
-              Seguimiento & Informes
+            <button className={`btn nav-item ${!clasesHook.activeClassId ? 'nav-class-locked' : ''} ${currentView === 'seguimiento' ? 'active' : ''}`}
+              onClick={() => {
+                if (!clasesHook.activeClassId) { showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning'); return; }
+                setCurrentView('seguimiento'); setIsSidebarActive(false);
+              }}>
+              <BarChart2 size={18} /> Seguimiento &amp; Informes
             </button>
           </nav>
 
-          {/* Sidebar user footer */}
           <div className="sidebar-footer">
             <div className="user-profile">
               <div className="avatar">{userInitials}</div>
               <div className="user-info">
-                <span className="user-name">{user.nombre}</span>
+                <span className="user-name">{auth.user.nombre}</span>
                 <span className="user-role">Maestro Investigador</span>
               </div>
             </div>
-            <button className="btn btn-icon-only btn-logout" onClick={handleLogout} title="Cerrar Sesión">
+            <button className="btn btn-icon-only btn-logout" title="Cerrar Sesión"
+              onClick={() => auth.handleLogout(() => { clasesHook.setClases([]); clasesHook.setActiveClassId(''); setCurrentView('clases'); })}>
               <LogOut size={16} />
             </button>
           </div>
         </aside>
 
-        {/* WORKSPACE CONTENT AREA */}
         <main className="workspace">
-          
-          {/* Header */}
           <header className="workspace-header">
             <div className="header-left">
-              <button 
-                className="btn btn-icon-only mobile-only" 
-                onClick={() => setIsSidebarActive(!isSidebarActive)}
-              >
+              <button className="btn btn-icon-only mobile-only" onClick={() => setIsSidebarActive(!isSidebarActive)}>
                 {isSidebarActive ? <X size={20} /> : <Menu size={20} />}
               </button>
-              
-              {activeClassId && activeClassObj && (
+              {clasesHook.activeClassId && activeClassObj && (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>AULA ACTIVA</span>
                   <span className="text-white" style={{ fontWeight: '800', fontSize: '1.25rem', fontFamily: 'var(--font-outfit)', marginTop: '-0.2rem' }}>
@@ -492,25 +280,17 @@ export default function App() {
                 </div>
               )}
             </div>
-
             <div className="header-right">
-              {/* Online/Offline Status Indicator */}
               <div className={`connection-status-badge ${isOnline ? '' : 'offline'}`}>
                 {isOnline ? <Wifi size={14} className="text-green-600" /> : <WifiOff size={14} className="text-red-600" />}
                 <span className="status-text">{isOnline ? 'Online' : 'Offline'}</span>
               </div>
-
-              {/* Class Dropdown Selector */}
-              {clases.length > 0 && (
+              {clasesHook.clases.length > 0 && (
                 <div className="class-selector">
                   <label htmlFor="active-class-select">Aula:</label>
-                  <select 
-                    id="active-class-select" 
-                    value={activeClassId} 
-                    onChange={handleClassChange}
-                  >
+                  <select id="active-class-select" value={clasesHook.activeClassId} onChange={clasesHook.handleClassChange}>
                     <option value="" disabled>Seleccione aula...</option>
-                    {clases.map(c => (
+                    {clasesHook.clases.map(c => (
                       <option key={c.id} value={c.id}>{c.nombre} ({c.grado})</option>
                     ))}
                   </select>
@@ -519,21 +299,15 @@ export default function App() {
             </div>
           </header>
 
-          {/* Workspace Views */}
           <div className="workspace-content">
             {renderView()}
           </div>
         </main>
       </div>
 
-      {/* TOAST SYSTEM */}
       {toasts.length > 0 && (
         <div className="toast-container">
-          {toasts.map(t => (
-            <div key={t.id} className={`toast toast-${t.type}`}>
-              <span>{t.message}</span>
-            </div>
-          ))}
+          {toasts.map(t => <div key={t.id} className={`toast toast-${t.type}`}><span>{t.message}</span></div>)}
         </div>
       )}
     </div>

@@ -1,192 +1,61 @@
 /**
- * EduDocente — Unified API Service Client
+ * Legacy API facade — preserved for backward compatibility with existing view components.
+ * All calls are delegated to the new infrastructure service layer.
+ *
+ * @deprecated Prefer importing services directly from src/infrastructure/api/
  */
-const BASE_URL = '';
-
-function getHeaders(extraHeaders = {}, includeJsonContentType = true) {
-  const headers = includeJsonContentType
-    ? { 'Content-Type': 'application/json', ...extraHeaders }
-    : { ...extraHeaders };
-  const user = localStorage.getItem('user');
-  if (user) {
-    try {
-      const p = JSON.parse(user);
-      if (p && p.id) headers['user-id'] = p.id;
-    } catch (e) {}
-  }
-  return headers;
-}
-
-async function handleResponse(response) {
-  if (!response.ok) {
-    let errorMessage = 'Ha ocurrido un error en la solicitud.';
-    try {
-      const d = await response.json();
-      if (d && d.error) errorMessage = d.error;
-    } catch (e) {}
-    throw new Error(errorMessage);
-  }
-  return response.json();
-}
+import { AuthService } from '../infrastructure/api/AuthService.js';
+import { ClaseService } from '../infrastructure/api/ClaseService.js';
+import { AlumnoService } from '../infrastructure/api/AlumnoService.js';
+import { TareaService, NotaService, UploadService } from '../infrastructure/api/TareaService.js';
+import { UnidadService, EvaluacionService } from '../infrastructure/api/EvaluacionService.js';
 
 export const api = {
-  // --- AUTH ---
-  async login(email, password) {
-    const r = await fetch(`${BASE_URL}/api/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const user = await handleResponse(r);
-    localStorage.setItem('user', JSON.stringify(user));
-    return user;
-  },
-  async register(email, password, nombre) {
-    const r = await fetch(`${BASE_URL}/api/auth/register`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, nombre })
-    });
-    return handleResponse(r);
-  },
-  logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('activeClassId');
-  },
-  getCurrentUser() {
-    const s = localStorage.getItem('user');
-    if (!s) return null;
-    try { return JSON.parse(s); } catch (e) { return null; }
-  },
+  // Auth
+  login:          (email, password) => AuthService.login(email, password),
+  register:       (email, password, nombre) => AuthService.register(email, password, nombre),
+  logout:         () => AuthService.logout(),
+  getCurrentUser: () => AuthService.getCurrentUser(),
 
-  // --- CLASES ---
-  async getClases() {
-    return handleResponse(await fetch(`${BASE_URL}/api/clases`, { headers: getHeaders() }));
-  },
-  async createClase(nombre, grado) {
-    return handleResponse(await fetch(`${BASE_URL}/api/clases`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify({ nombre, grado })
-    }));
-  },
-  async deleteClase(id) {
-    return handleResponse(await fetch(`${BASE_URL}/api/clases/${id}`, { method: 'DELETE', headers: getHeaders() }));
-  },
+  // Clases
+  getClases:    () => ClaseService.getClases(),
+  createClase:  (nombre, grado) => ClaseService.createClase(nombre, grado),
+  deleteClase:  (id) => ClaseService.deleteClase(id),
 
-  // --- ALUMNOS ---
-  async getAlumnos(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/alumnos?claseId=${claseId}`, { headers: getHeaders() }));
-  },
-  async createAlumno(claseId, nombre, padreCorreo, representante = '', telefono = '') {
-    return handleResponse(await fetch(`${BASE_URL}/api/alumnos`, {
-      method: 'POST', headers: getHeaders(),
-      body: JSON.stringify({ claseId, nombre, padreCorreo, representante, telefono })
-    }));
-  },
-  async updateAlumno(id, nombre, padreCorreo, representante = '', telefono = '') {
-    return handleResponse(await fetch(`${BASE_URL}/api/alumnos/${id}`, {
-      method: 'PUT', headers: getHeaders(),
-      body: JSON.stringify({ nombre, padreCorreo, representante, telefono })
-    }));
-  },
-  async deleteAlumno(id) {
-    return handleResponse(await fetch(`${BASE_URL}/api/alumnos/${id}`, { method: 'DELETE', headers: getHeaders() }));
-  },
+  // Alumnos
+  getAlumnos:   (claseId) => AlumnoService.getAlumnos(claseId),
+  createAlumno: (claseId, nombre, padreCorreo, representante, telefono) =>
+    AlumnoService.createAlumno(claseId, nombre, padreCorreo, representante, telefono),
+  updateAlumno: (id, nombre, padreCorreo, representante, telefono) =>
+    AlumnoService.updateAlumno(id, nombre, padreCorreo, representante, telefono),
+  deleteAlumno: (id) => AlumnoService.deleteAlumno(id),
 
-  // --- UNIDADES DIDÁCTICAS (RF-D02) ---
-  async getUnidades(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/unidades?claseId=${claseId}`, { headers: getHeaders() }));
-  },
-  async createUnidad(data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/unidades`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
-    }));
-  },
-  async updateUnidad(id, data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/unidades/${id}`, {
-      method: 'PUT', headers: getHeaders(), body: JSON.stringify(data)
-    }));
-  },
-  async deleteUnidad(id) {
-    return handleResponse(await fetch(`${BASE_URL}/api/unidades/${id}`, { method: 'DELETE', headers: getHeaders() }));
-  },
-  async clonarUnidad(id) {
-    return handleResponse(await fetch(`${BASE_URL}/api/unidades/${id}/clonar`, {
-      method: 'POST', headers: getHeaders()
-    }));
-  },
+  // Unidades
+  getUnidades:  (claseId) => UnidadService.getUnidades(claseId),
+  createUnidad: (data) => UnidadService.createUnidad(data),
+  updateUnidad: (id, data) => UnidadService.updateUnidad(id, data),
+  deleteUnidad: (id) => UnidadService.deleteUnidad(id),
+  clonarUnidad: (id) => UnidadService.clonarUnidad(id),
 
-  // --- EVALUACIONES (RF-D03) ---
-  async getEvaluaciones(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/evaluaciones?claseId=${claseId}`, { headers: getHeaders() }));
-  },
-  async getEvaluacionesAlumno(alumnoId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/evaluaciones?alumnoId=${alumnoId}`, { headers: getHeaders() }));
-  },
-  async createEvaluacion(data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/evaluaciones`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
-    }));
-  },
+  // Evaluaciones
+  getEvaluaciones:      (claseId) => EvaluacionService.getEvaluaciones(claseId),
+  getEvaluacionesAlumno:(alumnoId) => EvaluacionService.getEvaluacionesAlumno(alumnoId),
+  createEvaluacion:     (data) => EvaluacionService.createEvaluacion(data),
+  getMonitoreo:         (alumnoId, unidadId) => EvaluacionService.getMonitoreo(alumnoId, unidadId),
+  saveMonitoreo:        (data) => EvaluacionService.saveMonitoreo(data),
+  getAutoevaluaciones:  (claseId, alumnoId, unidadId) => EvaluacionService.getAutoevaluaciones(claseId, alumnoId, unidadId),
+  createAutoevaluacion: (data) => EvaluacionService.createAutoevaluacion(data),
+  getMatriz:            (claseId, unidadId) => EvaluacionService.getMatriz(claseId, unidadId),
 
-  // --- MONITOREO (RF-D06) ---
-  async getMonitoreo(alumnoId, unidadId) {
-    const q = unidadId ? `?unidadId=${unidadId}` : '';
-    return handleResponse(await fetch(`${BASE_URL}/api/monitoreo/${alumnoId}${q}`, { headers: getHeaders() }));
-  },
-  async saveMonitoreo(data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/monitoreo`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
-    }));
-  },
+  // Tareas (legacy)
+  getTareas:    (claseId) => TareaService.getTareas(claseId),
+  createTarea:  (claseId, data) => TareaService.createTarea(claseId, data),
+  deleteTarea:  (id) => TareaService.deleteTarea(id),
 
-  // --- AUTOEVALUACIÓN (RF-D07) ---
-  async getAutoevaluaciones(claseId, alumnoId, unidadId) {
-    let q = `claseId=${claseId}`;
-    if (alumnoId) q += `&alumnoId=${alumnoId}`;
-    if (unidadId) q += `&unidadId=${unidadId}`;
-    return handleResponse(await fetch(`${BASE_URL}/api/autoevaluacion?${q}`, { headers: getHeaders() }));
-  },
-  async createAutoevaluacion(data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/autoevaluacion`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify(data)
-    }));
-  },
+  // Notas (legacy)
+  getNotas:   (claseId) => NotaService.getNotas(claseId),
+  saveNota:   (alumnoId, tareaId, valor, comentario) => NotaService.saveNota(alumnoId, tareaId, valor, comentario),
 
-  // --- MATRIZ DE EVALUACIONES ---
-  async getMatriz(claseId, unidadId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/evaluaciones-matriz/${claseId}/${unidadId}`, { headers: getHeaders() }));
-  },
-
-  // --- TAREAS (legacy) ---
-  async getTareas(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/tareas?claseId=${claseId}`, { headers: getHeaders() }));
-  },
-  async createTarea(claseId, data) {
-    return handleResponse(await fetch(`${BASE_URL}/api/tareas`, {
-      method: 'POST', headers: getHeaders(), body: JSON.stringify({ claseId, ...data })
-    }));
-  },
-  async deleteTarea(id) {
-    return handleResponse(await fetch(`${BASE_URL}/api/tareas/${id}`, { method: 'DELETE', headers: getHeaders() }));
-  },
-
-  // --- NOTAS (legacy) ---
-  async getNotas(claseId) {
-    return handleResponse(await fetch(`${BASE_URL}/api/notas?claseId=${claseId}`, { headers: getHeaders() }));
-  },
-  async saveNota(alumnoId, tareaId, valor, comentario) {
-    return handleResponse(await fetch(`${BASE_URL}/api/notas`, {
-      method: 'POST', headers: getHeaders(),
-      body: JSON.stringify({ alumnoId, tareaId, valor, comentario })
-    }));
-  },
-
-  // --- UPLOAD ---
-  async uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const r = await fetch(`${BASE_URL}/api/upload`, {
-      method: 'POST', headers: getHeaders({}, false), body: formData
-    });
-    if (!r.ok) throw new Error('Error al subir el archivo.');
-    return r.json();
-  }
+  // Upload
+  uploadFile: (file) => UploadService.uploadFile(file)
 };
