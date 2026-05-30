@@ -29,14 +29,6 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('Service Worker registrado:', reg.scope))
-          .catch(err => console.error('Error al registrar Service Worker:', err));
-      });
-    }
-
     const activeUser = auth.initFromSession();
     if (activeUser) {
       auth.setUser(activeUser);
