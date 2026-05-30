@@ -3,27 +3,47 @@ const { isValidUuid } = require('../domain/utils');
 const path = require('path');
 
 const TareaController = {
+  /** GET /api/tareas?unidadId=... OR ?claseId=... */
   async getAll(req, res) {
-    const { claseId } = req.query;
-    if (!claseId) return res.status(400).json({ error: 'claseId es obligatorio' });
-    if (!isValidUuid(claseId)) return res.json([]);
-    try {
-      const tareas = await tareaRepository.findAllByClase(claseId);
-      res.json(tareas);
-    } catch (err) {
-      console.error('Error fetching tareas:', err);
-      res.status(500).json({ error: 'Error al obtener tareas' });
+    const { unidadId, claseId } = req.query;
+
+    // Modo principal: filtrar por unidad
+    if (unidadId) {
+      if (!isValidUuid(unidadId)) return res.json([]);
+      try {
+        const tareas = await tareaRepository.findAllByUnidad(unidadId);
+        return res.json(tareas);
+      } catch (err) {
+        console.error('Error fetching tareas by unidad:', err);
+        return res.status(500).json({ error: 'Error al obtener tareas' });
+      }
     }
+
+    // Modo legacy / notas: filtrar por clase (todas las tareas del aula)
+    if (claseId) {
+      if (!isValidUuid(claseId)) return res.json([]);
+      try {
+        const tareas = await tareaRepository.findAllByClase(claseId);
+        return res.json(tareas);
+      } catch (err) {
+        console.error('Error fetching tareas by clase:', err);
+        return res.status(500).json({ error: 'Error al obtener tareas' });
+      }
+    }
+
+    return res.status(400).json({ error: 'Se requiere unidadId o claseId como parámetro' });
   },
 
+  /** POST /api/tareas  — body: { claseId, unidadId, titulo, imagenUrl, actividadTipo, detalles, materiales } */
   async create(req, res) {
-    const { claseId, titulo, imagenUrl, actividadTipo, detalles, materiales } = req.body;
-    if (!claseId || !titulo || !imagenUrl || !actividadTipo || !detalles) {
-      return res.status(400).json({ error: 'Faltan campos obligatorios' });
+    const { claseId, unidadId, titulo, imagenUrl, actividadTipo, detalles, materiales } = req.body;
+    if (!claseId || !unidadId || !titulo || !imagenUrl || !actividadTipo || !detalles) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios (claseId, unidadId, titulo, imagenUrl, actividadTipo, detalles)' });
     }
     if (!isValidUuid(claseId)) return res.status(400).json({ error: 'Identificador claseId no válido' });
+    if (!isValidUuid(unidadId)) return res.status(400).json({ error: 'Identificador unidadId no válido' });
     try {
-      const tarea = await tareaRepository.create(claseId, titulo, imagenUrl, actividadTipo, detalles, materiales);
+      const tarea = await tareaRepository.create(claseId, unidadId, titulo, imagenUrl, actividadTipo, detalles, materiales);
       res.status(201).json(tarea);
     } catch (err) {
       console.error('Error creating tarea:', err);
@@ -46,7 +66,7 @@ const TareaController = {
       const publicDir = path.join(__dirname, '..', '..', 'public');
       const newMaterials = materiales || [];
 
-      // Clean deleted files from disk
+      // Limpiar archivos eliminados del disco
       (oldTarea.materiales || []).forEach(origMat => {
         const isStillPresent = newMaterials.some(m => m.archivoUrl === origMat.archivoUrl);
         if (!isStillPresent && origMat.archivoUrl && origMat.archivoUrl.startsWith('/uploads/') &&
@@ -80,7 +100,6 @@ const TareaController = {
 
       const publicDir = path.join(__dirname, '..', '..', 'public');
       tareaRepository.deleteFiles(tarea, publicDir);
-
       await tareaRepository.delete(tareaId);
       res.json({ message: 'Tarea y archivos asociados eliminados' });
     } catch (err) {

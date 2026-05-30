@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS "alumnos" (
 CREATE TABLE IF NOT EXISTS "tareas" (
   "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
   "clase_id" uuid NOT NULL,
+  "unidad_id" uuid,
   "titulo" varchar(255) NOT NULL,
   "imagen_url" varchar(512) NOT NULL,
   "actividad_tipo" varchar(50) NOT NULL,
@@ -180,6 +181,14 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='autoevaluacion' AND column_name='alumno_id') THEN
         ALTER TABLE "autoevaluacion" ADD COLUMN "alumno_id" uuid;
+    END IF;
+    -- Migración: agregar unidad_id a tareas si no existe
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='tareas' AND column_name='unidad_id') THEN
+        ALTER TABLE "tareas" ADD COLUMN "unidad_id" uuid;
+    END IF;
+    -- FK de tareas → unidades (con cascade)
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tareas_unidad') THEN
+        ALTER TABLE "tareas" ADD CONSTRAINT "fk_tareas_unidad" FOREIGN KEY ("unidad_id") REFERENCES "unidades" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
     END IF;
 END $$;
 `;

@@ -42,6 +42,7 @@ function mapTarea(row) {
   return {
     id: row.id,
     claseId: row.clase_id,
+    unidadId: row.unidad_id || null,
     titulo: row.titulo,
     imagenUrl: row.imagen_url,
     actividadTipo: row.actividad_tipo,

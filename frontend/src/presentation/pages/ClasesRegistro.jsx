@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Home, Users, BookOpen, Grid, Plus, Trash2, Edit2, Upload, FileText, X, AlertCircle, Loader, Percent, ShieldCheck } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 import UnidadesDidacticas from './UnidadesDidacticas';
 import SectionHome from '../components/SectionHome';
 import SubViewHeader from '../components/SubViewHeader';
@@ -12,59 +12,25 @@ export default function ClasesRegistro({
   onRefreshClases, 
   showToast 
 }) {
-  const [activeTab, setActiveTab] = useState(null); // null = home, 'aulas' | 'unidades' | 'notas' | 'tareas'
-  
+  const [activeTab, setActiveTab] = useState(null); // null = home, 'aulas' | 'unidades'
+
   // --- STATE FOR ALUMNOS ---
   const [alumnos, setAlumnos] = useState([]);
   const [loadingAlumnos, setLoadingAlumnos] = useState(false);
   const [showAddAlumnoModal, setShowAddAlumnoModal] = useState(false);
   const [alumnoForm, setAlumnoForm] = useState({ id: '', nombre: '', representante: '', padreCorreo: '', telefono: '' });
-  
-  // --- STATE FOR TAREAS (TASKS) ---
-  const [tareas, setTareas] = useState([]);
-  const [loadingTareas, setLoadingTareas] = useState(false);
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  
-  // Custom states for task uploads
-  const [taskForm, setTaskForm] = useState({
-    titulo: '',
-    imagenUrl: '',
-    actividadTipo: 'CLASIFICAR',
-    categorias: '',
-    preguntas: '',
-    respuestaEsperada: '',
-    elementos: '',
-    presentacion: ''
-  });
-  
-  const [taskMaterials, setTaskMaterials] = useState([]); // [{ id, nombre, archivoUrl }]
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingMaterial, setUploadingMaterial] = useState(false);
-  
-  const imageInputRef = useRef(null);
-  const materialInputRef = useRef(null);
-
-  // --- STATE FOR GRADES MATRIX ---
-  const [notas, setNotas] = useState([]);
-  const [loadingNotas, setLoadingNotas] = useState(false);
-  const [showGradeModal, setShowGradeModal] = useState(false);
-  const [selectedGradeCell, setSelectedGradeCell] = useState({ alumnoId: '', tareaId: '', alumnoNombre: '', tareaTitulo: '', valor: '', comentario: '' });
 
   // --- STATE FOR NEW CLASS MODAL ---
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [classForm, setClassForm] = useState({ nombre: '', grado: '' });
 
-  // Load students, tasks and grades when active class changes
+  // Load students when active class changes
   useEffect(() => {
-    setActiveTab(null); // always go back to home when switching groups
+    setActiveTab(null);
     if (activeClassId) {
       refreshAlumnos();
-      refreshTareas();
-      refreshNotas();
     } else {
       setAlumnos([]);
-      setTareas([]);
-      setNotas([]);
     }
   }, [activeClassId]);
 
@@ -76,21 +42,7 @@ export default function ClasesRegistro({
       .finally(() => setLoadingAlumnos(false));
   };
 
-  const refreshTareas = () => {
-    setLoadingTareas(true);
-    api.getTareas(activeClassId)
-      .then(data => setTareas(data))
-      .catch(err => showToast(err.message || 'Error al cargar tareas', 'danger'))
-      .finally(() => setLoadingTareas(false));
-  };
 
-  const refreshNotas = () => {
-    setLoadingNotas(true);
-    api.getNotas(activeClassId)
-      .then(data => setNotas(data))
-      .catch(err => showToast(err.message || 'Error al cargar calificaciones', 'danger'))
-      .finally(() => setLoadingNotas(false));
-  };
 
   // --- CLASSES CRUD LÓGICA ---
   const handleCreateClass = (e) => {
@@ -152,164 +104,14 @@ export default function ClasesRegistro({
         .then(() => {
           showToast('Estudiante eliminado', 'success');
           refreshAlumnos();
-          refreshNotas();
         })
         .catch(err => showToast(err.message || 'Error al eliminar estudiante', 'danger'));
     }
   };
 
-  // --- TAREAS DIDÁCTICAS UPLOADS & CRUD LÓGICA ---
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    setUploadingImage(true);
-    api.uploadFile(file)
-      .then(res => {
-        showToast('Imagen del material didáctico cargada', 'success');
-        setTaskForm(prev => ({ ...prev, imagenUrl: res.url }));
-      })
-      .catch(err => showToast(err.message || 'Error al subir imagen', 'danger'))
-      .finally(() => setUploadingImage(false));
-  };
 
-  const handleMaterialUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    setUploadingMaterial(true);
-    api.uploadFile(file)
-      .then(res => {
-        showToast('Ficha de soporte adjuntada', 'success');
-        const newMaterial = {
-          id: 'mat-' + Date.now(),
-          nombre: res.originalName,
-          archivoUrl: res.url
-        };
-        setTaskMaterials(prev => [...prev, newMaterial]);
-      })
-      .catch(err => showToast(err.message || 'Error al subir material', 'danger'))
-      .finally(() => setUploadingMaterial(false));
-  };
-
-  const handleRemoveMaterial = (id) => {
-    setTaskMaterials(prev => prev.filter(m => m.id !== id));
-  };
-
-  const handleSaveTask = (e) => {
-    e.preventDefault();
-    if (!taskForm.titulo || !taskForm.imagenUrl) {
-      showToast('El título y la imagen didáctica son obligatorios', 'warning');
-      return;
-    }
-
-    const payload = {
-      titulo: taskForm.titulo,
-      imagenUrl: taskForm.imagenUrl,
-      actividadTipo: taskForm.actividadTipo,
-      detalles: taskForm.actividadTipo === 'CLASIFICAR' ? {
-        categorias: taskForm.categorias,
-        preguntas: taskForm.preguntas,
-        respuestaEsperada: taskForm.respuestaEsperada
-      } : {
-        elementos: taskForm.elementos,
-        presentacion: taskForm.presentacion
-      },
-      materiales: taskMaterials
-    };
-
-    api.createTarea(activeClassId, payload)
-      .then(() => {
-        showToast('Ficha didáctica registrada en el catálogo', 'success');
-        setShowAddTaskModal(false);
-        resetTaskForm();
-        refreshTareas();
-      })
-      .catch(err => showToast(err.message || 'Error al registrar tarea', 'danger'));
-  };
-
-  const resetTaskForm = () => {
-    setTaskForm({
-      titulo: '',
-      imagenUrl: '',
-      actividadTipo: 'CLASIFICAR',
-      categorias: '',
-      preguntas: '',
-      respuestaEsperada: '',
-      elementos: '',
-      presentacion: ''
-    });
-    setTaskMaterials([]);
-  };
-
-  const handleDeleteTask = (id) => {
-    if (window.confirm('¿Está seguro de eliminar esta ficha didáctica del catálogo? Se borrarán sus calificaciones registradas.')) {
-      api.deleteTarea(id)
-        .then(() => {
-          showToast('Ficha didáctica eliminada', 'success');
-          refreshTareas();
-          refreshNotas();
-        })
-        .catch(err => showToast(err.message || 'Error al eliminar tarea', 'danger'));
-    }
-  };
-
-  // --- CALIFICACIONES (MATRIX) LÓGICA ---
-  const handleOpenGradeModal = (alumno, tarea) => {
-    const existingGrade = notas.find(n => n.alumnoId === alumno.id && n.tareaId === tarea.id);
-    setSelectedGradeCell({
-      alumnoId: alumno.id,
-      tareaId: tarea.id,
-      alumnoNombre: alumno.nombre,
-      tareaTitulo: tarea.titulo,
-      valor: existingGrade ? existingGrade.valor : '',
-      comentario: existingGrade ? existingGrade.comentario : ''
-    });
-    setShowGradeModal(true);
-  };
-
-  const handleSaveGrade = (e) => {
-    e.preventDefault();
-    if (selectedGradeCell.valor === '') {
-      showToast('Por favor, ingrese una calificación', 'warning');
-      return;
-    }
-
-    const val = parseFloat(selectedGradeCell.valor);
-    if (isNaN(val) || val < 0 || val > 10) {
-      showToast('La calificación debe ser un valor entre 0 y 10', 'warning');
-      return;
-    }
-
-    api.saveNota(
-      selectedGradeCell.alumnoId,
-      selectedGradeCell.tareaId,
-      val,
-      selectedGradeCell.comentario
-    )
-      .then(() => {
-        showToast('Calificación registrada con éxito', 'success');
-        setShowGradeModal(false);
-        refreshNotas();
-      })
-      .catch(err => showToast(err.message || 'Error al calificar', 'danger'));
-  };
-
-  const getGradeBoxClass = (val) => {
-    if (val === undefined || val === null || val === '') return 'grade-null';
-    const num = parseFloat(val);
-    if (num >= 8.5) return 'grade-high';
-    if (num >= 5.0) return 'grade-medium';
-    return 'grade-low';
-  };
-
-  // Helper to calculate student GPA
-  const getStudentGpa = (alumnoId) => {
-    const studentGrades = notas.filter(n => n.alumnoId === alumnoId);
-    if (studentGrades.length === 0) return '-';
-    const sum = studentGrades.reduce((acc, curr) => acc + curr.valor, 0);
-    return (sum / studentGrades.length).toFixed(1);
-  };
 
   return (
     <div className="sub-view animate-slide-up">
@@ -511,20 +313,20 @@ export default function ClasesRegistro({
               </div>
               <SectionHome
                 onSelect={setActiveTab}
-              cards={[
-                {
-                  id: 'aulas', icon: <Users size={22} />, color: '#4f46e5',
-                  title: 'Alumnos Registrados',
-                  description: 'Agregue, edite o elimine estudiantes del grupo.',
-                  badge: alumnos.length > 0 ? `${alumnos.length} alumnos` : 'Vacío'
-                },
-                {
-                  id: 'unidades', icon: <BookOpen size={22} />, color: '#0891b2',
-                  title: 'Unidades Didácticas',
-                  description: 'Cree y gestione unidades con actividades, objetivos y criterios.',
-                }
-              ]}
-            />
+                cards={[
+                  {
+                    id: 'aulas', icon: <Users size={22} />, color: '#4f46e5',
+                    title: 'Alumnos Registrados',
+                    description: 'Agregue, edite o elimine estudiantes del grupo.',
+                    badge: alumnos.length > 0 ? `${alumnos.length} alumnos` : 'Vacío'
+                  },
+                  {
+                    id: 'unidades', icon: <BookOpen size={22} />, color: '#0891b2',
+                    title: 'Unidades Didácticas',
+                    description: 'Cree y gestione unidades con sus tareas didácticas anidadas.',
+                  }
+                ]}
+              />
             </div>
           )}
 
@@ -594,106 +396,6 @@ export default function ClasesRegistro({
             <div>
               <SubViewHeader onBack={() => setActiveTab(null)} title="Unidades Didácticas" subtitle="Planifique, clone y archive unidades curriculares" icon={<BookOpen size={18} />} />
               <UnidadesDidacticas claseId={activeClassId} showToast={showToast} />
-            </div>
-          )}
-
-          {/* --- TAB 3: TAREAS COGNITIVAS (legacy) --- */}
-          {activeTab === 'tareas' && (
-            <div className="sub-view">
-              <div className="section-header-row">
-                <div>
-                  <h3 className="font-outfit text-white" style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Catálogo de Fichas Didácticas</h3>
-                  <p className="text-muted" style={{ fontSize: '0.8rem' }}>Materiales gráficos oficiales cargados para realizar pruebas lógicas</p>
-                </div>
-                <button className="btn btn-primary btn-sm" onClick={() => { resetTaskForm(); setShowAddTaskModal(true); }}>
-                  <Plus size={16} />
-                  Nueva Ficha Didáctica
-                </button>
-              </div>
-
-              {loadingTareas ? (
-                <div className="loading-container">
-                  <Loader className="spinner" />
-                </div>
-              ) : tareas.length === 0 ? (
-                <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#ffffff' }}>
-                  <BookOpen size={40} className="text-muted" style={{ margin: '0 auto 1rem' }} />
-                  <h4 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>No hay fichas didácticas cargadas</h4>
-                  <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
-                    Registre un material didáctico subiendo su ilustración y definiendo las metas de categorización lógica.
-                  </p>
-                </div>
-              ) : (
-                <div className="cards-grid">
-                  {tareas.map(t => (
-                    <div key={t.id} className="task-card">
-                      <div className="task-image-wrapper">
-                        <img 
-                          src={t.imagenUrl} 
-                          alt={t.titulo} 
-                          className="task-image"
-                        />
-                        <span className={`task-badge badge-${t.actividadTipo.toLowerCase()}`}>
-                          {t.actividadTipo}
-                        </span>
-                      </div>
-                      <div className="task-body">
-                        <h4 className="task-title">{t.titulo}</h4>
-                        
-                        <div className="task-summary-list">
-                          {t.actividadTipo === 'CLASIFICAR' ? (
-                            <>
-                              <div className="summary-item">
-                                <span className="summary-label">Categorías Esperadas:</span>
-                                <span className="summary-value">{t.detalles.categorias}</span>
-                              </div>
-                              <div className="summary-item">
-                                <span className="summary-label">Preguntas de Mediación:</span>
-                                <span className="summary-value" style={{ fontStyle: 'italic' }}>"{t.detalles.preguntas}"</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="summary-item">
-                                <span className="summary-label">Elementos a Ordenar:</span>
-                                <span className="summary-value">{t.detalles.elementos}</span>
-                              </div>
-                              <div className="summary-item">
-                                <span className="summary-label">Presentación Didáctica:</span>
-                                <span className="summary-value">{t.detalles.presentacion}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {t.materiales && t.materiales.length > 0 && (
-                          <div className="task-materials">
-                            <span className="materials-title">Documentos de Soporte:</span>
-                            {t.materiales.map(mat => (
-                              <a 
-                                key={mat.id} 
-                                href={mat.archivoUrl} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="material-link"
-                              >
-                                <FileText size={14} />
-                                {mat.nombre}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="task-footer">
-                        <button className="btn btn-secondary btn-sm" onClick={() => handleDeleteTask(t.id)} style={{ color: 'var(--danger)' }}>
-                          <Trash2 size={14} />
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -799,208 +501,7 @@ export default function ClasesRegistro({
         </div>
       )}
 
-      {/* 3. Modal: Add Task (Nueva Ficha Didáctica) */}
-      {showAddTaskModal && (
-        <div className="modal-overlay" onClick={() => setShowAddTaskModal(false)}>
-          <div className="modal-box large-modal animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">Registrar Material / Ficha en el Catálogo</h3>
-              <button className="btn-close-modal" onClick={() => setShowAddTaskModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveTask} className="modal-form">
-              <div className="grid-form">
-                {/* Column 1: Core details & illustration */}
-                <div className="form-column">
-                  <div className="input-group">
-                    <label>Título de la Actividad Didáctica:</label>
-                    <input 
-                      type="text" 
-                      value={taskForm.titulo}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, titulo: e.target.value }))}
-                      placeholder="Ej: Identificación de Personas Seguras" 
-                      required
-                    />
-                  </div>
 
-                  <div className="input-group">
-                    <label>Tipo de Tarea Cognitiva (Estadio Piaget):</label>
-                    <select 
-                      className="select-input"
-                      value={taskForm.actividadTipo}
-                      onChange={(e) => setTaskForm(prev => ({ ...prev, actividadTipo: e.target.value }))}
-                    >
-                      <option value="CLASIFICAR">CLASIFICACIÓN (Lotería de categorización)</option>
-                      <option value="ORDENAR">SERIACIÓN TEMPORAL (Secuenciación de momentos)</option>
-                      <option value="UBICAR">UBICACIÓN ESPACIAL (Fronteras y límites)</option>
-                    </select>
-                  </div>
-
-                  <div className="input-group">
-                    <label>Imagen Ilustrativa del Material Didáctico:</label>
-                    <div className="file-uploader" style={{ minHeight: '110px' }}>
-                      {uploadingImage ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', padding: '0.5rem' }}>
-                          <Loader className="spinner" style={{ width: '30px', height: '30px' }} />
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando ilustración...</span>
-                        </div>
-                      ) : taskForm.imagenUrl ? (
-                        <div className="preview-container">
-                          <img src={taskForm.imagenUrl} alt="Preview" />
-                          <button 
-                            type="button" 
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => setTaskForm(prev => ({ ...prev, imagenUrl: '' }))}
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
-                          >
-                            Eliminar Imagen
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="upload-dropzone">
-                          <Upload size={32} />
-                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--text-white)' }}>
-                            Subir archivo de ilustración
-                          </span>
-                          <span className="file-tip">Formatos soportados: SVG, PNG, JPG (Máx 5MB)</span>
-                          <input 
-                            type="file" 
-                            className="file-input-hidden" 
-                            ref={imageInputRef}
-                            onChange={handleImageUpload}
-                            accept="image/*"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Column 2: Specific didactical questions */}
-                <div className="form-column">
-                  {taskForm.actividadTipo === 'CLASIFICAR' ? (
-                    <div className="dynamic-panel">
-                      <div className="dynamic-panel-content">
-                        <span className="panel-subtitle text-white">Configuración de Clasificación</span>
-                        <div className="input-group">
-                          <label>Categorías Didácticas Esperadas:</label>
-                          <textarea 
-                            value={taskForm.categorias}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, categorias: e.target.value }))}
-                            placeholder="Ej: Personas de Confianza familiar vs. Personas sospechosas externamente." 
-                            required
-                          />
-                        </div>
-                        <div className="input-group">
-                          <label>Preguntas de Mediación Cognitiva:</label>
-                          <textarea 
-                            value={taskForm.preguntas}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, preguntas: e.target.value }))}
-                            placeholder="Ej: ¿Cuáles de estas personas te cuidan en la calle? ¿Qué harías si un desconocido te ofrece subir a su auto?" 
-                            required
-                          />
-                        </div>
-                        <div className="input-group" style={{ marginBottom: 0 }}>
-                          <label>Respuesta o Comportamiento Lógico Esperado:</label>
-                          <textarea 
-                            value={taskForm.respuestaEsperada}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, respuestaEsperada: e.target.value }))}
-                            placeholder="Ej: El niño debe separar las 9 láminas identificando al policía y al bombero como figuras seguras." 
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="dynamic-panel">
-                      <div className="dynamic-panel-content">
-                        <span className="panel-subtitle text-white">Configuración de Seriación / Ubicación</span>
-                        <div className="input-group">
-                          <label>Elementos / Momentos a Ordenar:</label>
-                          <textarea 
-                            value={taskForm.elementos}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, elementos: e.target.value }))}
-                            placeholder="Ej: 1. Llaman a la puerta, 2. Mira por mirilla, 3. No abre y pide ayuda." 
-                            required
-                          />
-                        </div>
-                        <div className="input-group" style={{ marginBottom: 0 }}>
-                          <label>Instrucciones de Presentación en Aula:</label>
-                          <textarea 
-                            value={taskForm.presentacion}
-                            onChange={(e) => setTaskForm(prev => ({ ...prev, presentacion: e.target.value }))}
-                            placeholder="Ej: Entregar las 3 tarjetas recortadas en desorden al niño y pedirle que narre la secuencia de izquierda a derecha." 
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Attachment of support materials */}
-                  <div className="input-group" style={{ marginBottom: 0 }}>
-                    <label>Fichas de Soporte / Hojas de Trabajo (PDF):</label>
-                    <div 
-                      style={{ 
-                        border: '1px solid #cbd5e1', 
-                        borderRadius: '10px', 
-                        padding: '0.75rem', 
-                        background: '#f8fafc',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        {uploadingMaterial ? 'Cargando archivo...' : 'Adjunte guías en PDF (Máx 10MB)'}
-                      </span>
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary btn-sm"
-                        disabled={uploadingMaterial}
-                        style={{ padding: '0.3rem 0.6rem', position: 'relative' }}
-                      >
-                        <Plus size={14} style={{ marginRight: '0.2rem', display: 'inline' }} />
-                        Adjuntar
-                        <input 
-                          type="file" 
-                          className="file-input-hidden" 
-                          ref={materialInputRef}
-                          onChange={handleMaterialUpload}
-                          accept="application/pdf"
-                        />
-                      </button>
-                    </div>
-                    
-                    {taskMaterials.length > 0 && (
-                      <ul className="materials-list">
-                        {taskMaterials.map(mat => (
-                          <li key={mat.id} className="material-item">
-                            <span className="material-item-name">{mat.nombre}</span>
-                            <button 
-                              type="button" 
-                              className="btn-remove-material" 
-                              onClick={() => handleRemoveMaterial(mat.id)}
-                            >
-                              &times;
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer full-width">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddTaskModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Registrar Ficha Didáctica</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );

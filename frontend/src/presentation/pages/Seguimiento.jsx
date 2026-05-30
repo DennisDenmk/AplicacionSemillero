@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart2, User, Users, Loader, AlertCircle, Printer } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 import SectionHome from '../components/SectionHome';
 import SubViewHeader from '../components/SubViewHeader';
 

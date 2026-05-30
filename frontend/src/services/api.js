@@ -47,9 +47,12 @@ export const api = {
   createAutoevaluacion: (data) => EvaluacionService.createAutoevaluacion(data),
   getMatriz:            (claseId, unidadId) => EvaluacionService.getMatriz(claseId, unidadId),
 
-  // Tareas (legacy)
-  getTareas:    (claseId) => TareaService.getTareas(claseId),
-  createTarea:  (claseId, data) => TareaService.createTarea(claseId, data),
+  // Tareas (por unidad — flujo principal)
+  getTareasByUnidad: (unidadId) => TareaService.getTareasByUnidad(unidadId),
+  getTareasByClase:  (claseId)  => TareaService.getTareasByClase(claseId),
+  getTareas:    (claseId) => TareaService.getTareas(claseId),  // legacy alias
+  createTarea:  (claseId, unidadId, data) => TareaService.createTarea(claseId, unidadId, data),
+  updateTarea:  (id, data) => TareaService.updateTarea(id, data),
   deleteTarea:  (id) => TareaService.deleteTarea(id),
 
   // Notas (legacy)

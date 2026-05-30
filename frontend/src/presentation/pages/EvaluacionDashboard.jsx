@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Award, FileText, CheckSquare, Save, Loader, AlertCircle, X, CheckCircle, XCircle, BookOpen } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 import SubViewHeader from '../components/SubViewHeader';
 
 // ── Constantes ───────────────────────────────────────────────────────────────

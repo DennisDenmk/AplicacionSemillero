@@ -4,6 +4,16 @@ const path = require('path');
 const fs = require('fs');
 
 class TareaRepository {
+  /** Obtener todas las tareas de una unidad específica */
+  async findAllByUnidad(unidadId) {
+    const result = await pool.query(
+      'SELECT * FROM tareas WHERE unidad_id = $1 ORDER BY created_at ASC',
+      [unidadId]
+    );
+    return result.rows.map(mapTarea);
+  }
+
+  /** Fallback: obtener todas las tareas de una clase (para notas) */
   async findAllByClase(claseId) {
     const result = await pool.query(
       'SELECT * FROM tareas WHERE clase_id = $1 ORDER BY created_at ASC',
@@ -17,10 +27,10 @@ class TareaRepository {
     return result.rows.length > 0 ? mapTarea(result.rows[0]) : null;
   }
 
-  async create(claseId, titulo, imagenUrl, actividadTipo, detalles, materiales) {
+  async create(claseId, unidadId, titulo, imagenUrl, actividadTipo, detalles, materiales) {
     const result = await pool.query(
-      'INSERT INTO tareas (clase_id, titulo, imagen_url, actividad_tipo, detalles, materiales) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [claseId, titulo, imagenUrl, actividadTipo, JSON.stringify(detalles), JSON.stringify(materiales || [])]
+      'INSERT INTO tareas (clase_id, unidad_id, titulo, imagen_url, actividad_tipo, detalles, materiales) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [claseId, unidadId || null, titulo, imagenUrl, actividadTipo, JSON.stringify(detalles), JSON.stringify(materiales || [])]
     );
     return mapTarea(result.rows[0]);
   }

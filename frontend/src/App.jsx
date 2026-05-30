@@ -8,7 +8,6 @@ import { useToast } from './application/hooks/useToast.js';
 
 // Presentation layer — pages (views)
 import ClasesRegistro from './presentation/pages/ClasesRegistro.jsx';
-import MarcoTeorico from './presentation/pages/MarcoTeorico.jsx';
 import EvaluacionDashboard from './presentation/pages/EvaluacionDashboard.jsx';
 import Seguimiento from './presentation/pages/Seguimiento.jsx';
 
@@ -58,8 +57,6 @@ export default function App() {
             showToast={showToast}
           />
         );
-      case 'teorico':
-        return <MarcoTeorico />;
       case 'evaluacion':
         return <EvaluacionDashboard activeClassId={clasesHook.activeClassId} showToast={showToast} />;
       case 'seguimiento':
@@ -221,10 +218,6 @@ export default function App() {
             <button className={`btn nav-item ${currentView === 'clases' ? 'active' : ''}`}
               onClick={() => { setCurrentView('clases'); setIsSidebarActive(false); }}>
               <Home size={18} /> Mis Aulas &amp; Registro
-            </button>
-            <button className={`btn nav-item ${currentView === 'teorico' ? 'active' : ''}`}
-              onClick={() => { setCurrentView('teorico'); setIsSidebarActive(false); }}>
-              <BookOpen size={18} /> Marco Teórico
             </button>
             <button className={`btn nav-item ${!clasesHook.activeClassId ? 'nav-class-locked' : ''} ${currentView === 'evaluacion' ? 'active' : ''}`}
               onClick={() => {
