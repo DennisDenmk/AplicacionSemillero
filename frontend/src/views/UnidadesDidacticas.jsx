@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Plus, Edit2, Trash2, Copy, Archive, X, Loader, ChevronDown, ChevronUp, Upload, FileText } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 const EMPTY_FORM = {
   titulo: '', ambito: '', objetivoGeneral: '', objetivoAprendizaje: '',
@@ -37,6 +37,7 @@ export default function UnidadesDidacticas({ claseId, showToast }) {
   const [taskMaterials, setTaskMaterials] = useState([]); // [{ id, nombre, archivoUrl }]
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingMaterial, setUploadingMaterial] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const imageInputRef = useRef(null);
   const materialInputRef = useRef(null);
@@ -77,11 +78,13 @@ export default function UnidadesDidacticas({ claseId, showToast }) {
     e.preventDefault();
     if (!form.titulo) { showToast('El título es obligatorio', 'warning'); return; }
     const payload = { ...form, claseId };
+    setSaving(true);
     const op = editId ? api.updateUnidad(editId, payload) : api.createUnidad(payload);
     op.then(() => {
       showToast(editId ? 'Unidad actualizada' : 'Unidad creada', 'success');
       setShowModal(false); load();
-    }).catch(e => showToast(e.message, 'danger'));
+    }).catch(e => showToast(e.message, 'danger'))
+      .finally(() => setSaving(false));
   };
 
   const handleDelete = id => {
@@ -189,20 +192,22 @@ export default function UnidadesDidacticas({ claseId, showToast }) {
       materiales: taskMaterials
     };
 
+    setSaving(true);
     api.createTarea(claseId, selectedUnidadId, payload)
       .then(() => {
         showToast('Ficha didáctica registrada exitosamente en la unidad', 'success');
         setShowTaskModal(false);
         loadTareas(selectedUnidadId);
       })
-      .catch(err => showToast(err.message || 'Error al registrar tarea', 'danger'));
+      .catch(err => showToast(err.message || 'Error al registrar tarea', 'danger'))
+      .finally(() => setSaving(false));
   };
 
   const handleDeleteTask = (id, unidadId) => {
     if (window.confirm('¿Está seguro de eliminar esta ficha didáctica? Se borrarán sus calificaciones registradas.')) {
       api.deleteTarea(id)
         .then(() => {
-          showToast('Ficha didáctica registrada', 'success');
+          showToast('Ficha didáctica eliminada', 'success');
           loadTareas(unidadId);
         })
         .catch(err => showToast(err.message || 'Error al eliminar tarea', 'danger'));
@@ -423,8 +428,17 @@ export default function UnidadesDidacticas({ claseId, showToast }) {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">{editId ? 'Actualizar' : 'Crear Unidad'}</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={saving}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Loader className="spinner" size={14} style={{ display: 'inline', animation: 'spin 1s linear infinite' }} />
+                      Procesando...
+                    </span>
+                  ) : (
+                    editId ? 'Actualizar' : 'Crear Unidad'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -606,8 +620,17 @@ export default function UnidadesDidacticas({ claseId, showToast }) {
               </div>
 
               <div className="modal-footer full-width" style={{ marginTop: '1.5rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Registrar Ficha Didáctica</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)} disabled={saving}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Loader className="spinner" size={14} style={{ display: 'inline', animation: 'spin 1s linear infinite' }} />
+                      Procesando...
+                    </span>
+                  ) : (
+                    'Registrar Ficha Didáctica'
+                  )}
+                </button>
               </div>
             </form>
           </div>

@@ -23,6 +23,7 @@ export default function ClasesRegistro({
   // --- STATE FOR NEW CLASS MODAL ---
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [classForm, setClassForm] = useState({ nombre: '', grado: '' });
+  const [saving, setSaving] = useState(false);
 
   // Load students when active class changes
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function ClasesRegistro({
       return;
     }
 
+    setSaving(true);
     api.createClase(classForm.nombre, classForm.grado || 'General')
       .then(newClase => {
         showToast('Aula creada exitosamente', 'success');
@@ -59,7 +61,8 @@ export default function ClasesRegistro({
         setClassForm({ nombre: '', grado: '' });
         onRefreshClases(newClase.id);
       })
-      .catch(err => showToast(err.message || 'Error al crear aula', 'danger'));
+      .catch(err => showToast(err.message || 'Error al crear aula', 'danger'))
+      .finally(() => setSaving(false));
   };
 
   const handleDeleteClass = (id, e) => {
@@ -82,14 +85,17 @@ export default function ClasesRegistro({
       return;
     }
     const EMPTY = { id: '', nombre: '', representante: '', padreCorreo: '', telefono: '' };
+    setSaving(true);
     if (alumnoForm.id) {
       api.updateAlumno(alumnoForm.id, alumnoForm.nombre, alumnoForm.padreCorreo, alumnoForm.representante, alumnoForm.telefono)
         .then(() => { showToast('Estudiante actualizado', 'success'); setShowAddAlumnoModal(false); setAlumnoForm(EMPTY); refreshAlumnos(); })
-        .catch(err => showToast(err.message || 'Error al actualizar alumno', 'danger'));
+        .catch(err => showToast(err.message || 'Error al actualizar alumno', 'danger'))
+        .finally(() => setSaving(false));
     } else {
       api.createAlumno(activeClassId, alumnoForm.nombre, alumnoForm.padreCorreo, alumnoForm.representante, alumnoForm.telefono)
         .then(() => { showToast('Estudiante registrado exitosamente', 'success'); setShowAddAlumnoModal(false); setAlumnoForm(EMPTY); refreshAlumnos(); })
-        .catch(err => showToast(err.message || 'Error al registrar alumno', 'danger'));
+        .catch(err => showToast(err.message || 'Error al registrar alumno', 'danger'))
+        .finally(() => setSaving(false));
     }
   };
 
@@ -460,9 +466,16 @@ export default function ClasesRegistro({
                 />
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddAlumnoModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">
-                  {alumnoForm.id ? 'Actualizar Datos' : 'Registrar Estudiante'}
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddAlumnoModal(false)} disabled={saving}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Loader className="spinner" size={14} style={{ display: 'inline', animation: 'spin 1s linear infinite' }} />
+                      Procesando...
+                    </span>
+                  ) : (
+                    alumnoForm.id ? 'Actualizar Datos' : 'Registrar Estudiante'
+                  )}
                 </button>
               </div>
             </form>
@@ -493,8 +506,17 @@ export default function ClasesRegistro({
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddClassModal(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Registrar Aula</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddClassModal(false)} disabled={saving}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Loader className="spinner" size={14} style={{ display: 'inline', animation: 'spin 1s linear infinite' }} />
+                      Registrando...
+                    </span>
+                  ) : (
+                    'Registrar Aula'
+                  )}
+                </button>
               </div>
             </form>
           </div>
