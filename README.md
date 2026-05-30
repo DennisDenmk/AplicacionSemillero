@@ -17,7 +17,25 @@ EduDocente es una plataforma web modular diseñada para que docentes de educaci�
   - **Rúbrica Cognitiva:** Niveles I (Iniciado), EP (En Proceso) y L (Logrado) para 5 criterios cognitivos clave.
   - **Ficha de Monitoreo Individual:** Registro detallado de observaciones y acciones de apoyo por dimensión de asimilación/acomodación.
   - **Autoevaluación Docente:** Cuestionario reflexivo de 6 preguntas para auto-analizar el andamiaje pedagógico de la sesión por cada estudiante.
-- **Diseño Mobile-First & PWA:** Totalmente adaptado para pantallas móviles con soporte de gestos táctiles (cerrar menús tocando el fondo) y almacenamiento local.
+- **Diseño Mobile-First:** Totalmente adaptado para pantallas móviles con soporte de gestos táctiles (cerrar menús tocando el fondo) y almacenamiento local.
+
+---
+
+## 🏗️ Arquitectura Limpia (Clean Architecture)
+
+El proyecto ha sido refactorizado implementando los principios de **Clean Architecture** para lograr un acoplamiento débil, alta cohesión y una clara separación de responsabilidades:
+
+### Capas del Backend
+1. **Dominio (`src/domain`):** Modelos puros de datos (`index.js`) y utilidades compartidas.
+2. **Repositorios (`src/repositories`):** Capa de acceso a datos directa a PostgreSQL (SQL puro, sin acoplamiento a frameworks).
+3. **Controladores (`src/controllers`):** Controladores de Express que manejan peticiones HTTP y delegan la lógica al repositorio.
+4. **Infraestructura (`src/infrastructure`):** Conexión de base de datos (`postgres.js`), configuraciones de Express, middlewares y punto de inicio.
+5. **Entry Point (`server.js`):** Punto de entrada minimalista que inicializa variables de entorno, la base de datos y arranca el servidor.
+
+### Capas del Frontend
+1. **Capa de Aplicación (`src/application/hooks`):** Estado y lógica de negocio encapsulados en custom hooks (`useAuth`, `useClases`, `useAlumnos`, `useToast`).
+2. **Capa de Infraestructura (`src/infrastructure/api`):** Cliente de red (`apiClient.js`) y servicios específicos (`AuthService`, `ClaseService`, etc.) encargados de la comunicación externa.
+3. **Capa de Presentación (`src/presentation`):** Componentes UI (`components`) y páginas (`pages`) puros, desacoplados del estado global de la aplicación.
 
 ---
 
@@ -35,6 +53,7 @@ EduDocente es una plataforma web modular diseñada para que docentes de educaci�
 - **Base de Datos:** PostgreSQL
 - **Conector DB:** `node-postgres` (con soporte para pool de conexiones resiliente)
 - **Subida de Materiales:** Multer (archivos PDF e imágenes locales)
+- **Gestión de Paquetes:** `pnpm` (Rápido, eficiente y seguro)
 
 ---
 
@@ -56,6 +75,7 @@ El sistema se inicializa de forma autónoma creando las siguientes tablas relaci
 
 ### Requisitos Previos
 - Node.js (versión 18 o superior)
+- `pnpm` instalado de forma global (`npm install -g pnpm`)
 - Servidor PostgreSQL activo con una base de datos creada.
 
 ### Paso 1: Configurar Variables de Entorno
@@ -64,7 +84,6 @@ Crea un archivo `.env` en la carpeta `backend/` con las siguientes credenciales:
 ```env
 PORT=3000
 DATABASE_URL=postgresql://tu_usuario:tu_contraseña@localhost:5432/edu_docente
-JWT_SECRET=tu_clave_secreta_aqui
 ```
 
 ### Paso 2: Configuración del Backend
@@ -72,14 +91,13 @@ JWT_SECRET=tu_clave_secreta_aqui
    ```bash
    cd backend
    ```
-2. Instala las dependencias:
+2. Instala las dependencias con `pnpm`:
    ```bash
-   npm install
+   pnpm install
    ```
 3. Ejecuta el servidor en modo desarrollo:
    ```bash
-   npm run dev
-   # o alternativamente: node server.js
+   pnpm run dev
    ```
 *Nota: El servidor inicializará las tablas de la base de datos automáticamente si no existen.*
 
@@ -88,13 +106,13 @@ JWT_SECRET=tu_clave_secreta_aqui
    ```bash
    cd ../frontend
    ```
-2. Instala las dependencias:
+2. Instala las dependencias con `pnpm`:
    ```bash
-   npm install
+   pnpm install
    ```
 3. Inicia el servidor de desarrollo Vite:
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 4. Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
 
@@ -103,17 +121,26 @@ JWT_SECRET=tu_clave_secreta_aqui
 ## 📁 Distribución del Directorio
 
 ```
-AplicacionSoftEmrpesaria/
+AplicacionSemillero/
 ├── 📁 frontend/               # Código cliente React
 │   ├── src/
-│   │   ├── views/             # Vistas principales (Clases, Rúbrica, Seguimiento)
-│   │   ├── components/        # Componentes UI reutilizables
-│   │   ├── services/          # Conexión API Centralizada (api.js)
+│   │   ├── 📁 application/    # Lógica de Negocio (Custom Hooks)
+│   │   ├── 📁 domain/         # Modelos puros y lógica compartida
+│   │   ├── 📁 infrastructure/ # Cliente API HTTP y servicios
+│   │   ├── 📁 presentation/   # Componentes y Páginas React
+│   │   ├── 📁 services/       # Fachada de compatibilidad hacia atrás
 │   │   └── index.css          # Estilo global y variables de diseño
 │   └── vite.config.js
 │
 └── 📁 backend/                # Código servidor Express.js
-    ├── server.js              # Inicialización, APIs y migraciones DB
+    ├── 📁 src/
+    │   ├── 📁 controllers/    # Controladores de peticiones
+    │   ├── 📁 domain/         # Modelos de datos
+    │   ├── 📁 infrastructure/ # Configuración del servidor y DB
+    │   ├── 📁 repositories/   # Consultas directas a base de datos
+    │   └── 📁 routes/         # Rutas de la API
+    ├── server.js              # Punto de entrada minimalista
     ├── package.json
-    └── 📁 uploads/            # Archivos locales de fichas didácticas
+    └── 📁 public/
+        └── 📁 uploads/        # Archivos locales de fichas didácticas
 ```
