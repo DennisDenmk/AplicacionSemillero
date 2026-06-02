@@ -21,9 +21,6 @@ export function useClases(showToast) {
           localStorage.setItem('activeClassId', defaultId);
         } else if (cachedClassId && data.some(c => c.id === cachedClassId)) {
           setActiveClassId(cachedClassId);
-        } else if (data.length > 0) {
-          setActiveClassId(data[0].id);
-          localStorage.setItem('activeClassId', data[0].id);
         } else {
           setActiveClassId('');
         }

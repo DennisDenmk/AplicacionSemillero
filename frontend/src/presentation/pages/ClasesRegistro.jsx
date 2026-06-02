@@ -1,9 +1,266 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, Users, BookOpen, Grid, Plus, Trash2, Edit2, Upload, FileText, X, AlertCircle, Loader, Percent, ShieldCheck } from 'lucide-react';
+import { Home, Users, BookOpen, Grid, Plus, Trash2, Edit2, Upload, FileText, X, AlertCircle, Loader, Percent, ShieldCheck, User, Eye } from 'lucide-react';
 import { api } from '../../services/api';
 import UnidadesDidacticas from './UnidadesDidacticas';
 import SectionHome from '../components/SectionHome';
 import SubViewHeader from '../components/SubViewHeader';
+
+function StudentProfile({ alumno, activeClassName, onBack, showToast }) {
+  const [profileTab, setProfileTab] = useState('progreso'); // 'progreso' | 'historial' | 'notas'
+  const [evaluaciones, setEvaluaciones] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      api.getEvaluacionesAlumno(alumno.id),
+      api.getUnidades(alumno.claseId)
+    ])
+      .then(([evs, uns]) => {
+        setEvaluaciones(evs);
+        setUnidades(uns);
+      })
+      .catch(e => showToast(e.message || 'Error al cargar perfil', 'danger'))
+      .finally(() => setLoading(false));
+  }, [alumno]);
+
+  const getEvaluatedCount = (rubrica) => {
+    if (!rubrica) return 0;
+    const keys = ['clasificacion', 'seriacion', 'construccion', 'pensamientoLogico', 'metacognicion'];
+    return keys.filter(k => rubrica[k] && ['I', 'EP', 'L'].includes(rubrica[k])).length;
+  };
+
+  const getCritLabel = (crit) => {
+    switch (crit) {
+      case 'clasificacion': return 'Clasificación de información';
+      case 'seriacion': return 'Seriación y ordenamiento';
+      case 'construccion': return 'Construcción de conocimiento';
+      case 'pensamientoLogico': return 'Pensamiento lógico';
+      case 'metacognicion': return 'Metacognición';
+      default: return crit;
+    }
+  };
+
+  const getCritBadge = (val) => {
+    switch (val) {
+      case 'L': return <span className="badge badge-achieved">Logrado</span>;
+      case 'EP': return <span className="badge badge-progress" style={{ background: '#fef3c7', color: '#d97706' }}>En Proceso</span>;
+      case 'I': return <span className="badge badge-initiated">Iniciado</span>;
+      default: return <span style={{ color: 'var(--text-muted)' }}>Sin calificar</span>;
+    }
+  };
+
+  const latestEval = evaluaciones.length > 0 
+    ? evaluaciones[evaluaciones.length - 1] 
+    : null;
+
+  const activeUnit = latestEval && unidades.find(u => u.id === latestEval.unidadId);
+
+  return (
+    <div className="student-profile-view animate-slide-up" style={{ padding: '8px' }}>
+      {/* Top Header Row matching the image */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button 
+            onClick={onBack} 
+            className="btn btn-ghost btn-sm"
+            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#fff' }}
+          >
+            ← {activeClassName}
+          </button>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+            Perfil del alumno
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="btn btn-primary btn-sm" 
+            style={{ background: '#2563eb', borderColor: '#2563eb', padding: '8px 16px', borderRadius: '8px', fontWeight: 600 }}
+            onClick={() => window.location.href = `/evaluacion`}
+          >
+            Evaluar
+          </button>
+          <button 
+            className="btn btn-secondary btn-sm"
+            style={{ background: '#fff', border: '1px solid #cbd5e1', color: '#1e293b', padding: '8px 16px', borderRadius: '8px', fontWeight: 600 }}
+            onClick={() => window.location.href = `/seguimiento`}
+          >
+            Ficha de monitoreo
+          </button>
+        </div>
+      </div>
+
+      {/* Main Student Header Card matching the image */}
+      <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '24px', borderRadius: '16px', background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', marginBottom: '24px' }}>
+        <div style={{ 
+          width: '64px', height: '64px', borderRadius: '50%', 
+          background: '#dbeafe', color: '#2563eb', 
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.35rem', fontWeight: 700 
+        }}>
+          {alumno.nombre.substring(0, 2).toUpperCase()}
+        </div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+            {alumno.nombre}
+          </h2>
+          <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#64748b' }}>
+            {activeClassName} · Representante: {alumno.representante || '—'} · {alumno.telefono || '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '0', marginBottom: '24px' }}>
+        {['progreso', 'historial', 'notas'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setProfileTab(tab)}
+            style={{
+              background: 'none', border: 'none', padding: '12px 18px', cursor: 'pointer',
+              fontSize: '0.95rem', fontWeight: profileTab === tab ? 700 : 500,
+              color: profileTab === tab ? '#2563eb' : '#64748b',
+              borderBottom: profileTab === tab ? '2px solid #2563eb' : '2px solid transparent',
+              textTransform: 'capitalize', transition: 'all 0.2s', marginBottom: '-1px'
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}><Loader className="spinner" /></div>
+      ) : (
+        <>
+          {profileTab === 'progreso' && (
+            <div>
+              {/* Rúbrica cognitiva Card */}
+              <div className="glass" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+                    Rúbrica cognitiva — {activeUnit ? activeUnit.titulo : 'Última Unidad'}
+                  </h3>
+                  {latestEval && getEvaluatedCount(latestEval.rubrica) === 5 ? (
+                    <span className="badge badge-achieved" style={{ background: '#dcfce7', color: '#15803d', padding: '4px 10px', fontSize: '0.8rem' }}>Completo</span>
+                  ) : (
+                    <span className="badge badge-progress" style={{ background: '#fef3c7', color: '#d97706', padding: '4px 10px', fontSize: '0.8rem' }}>En Proceso</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {['clasificacion', 'seriacion', 'construccion', 'pensamientoLogico', 'metacognicion'].map(key => {
+                    const val = latestEval ? latestEval.rubrica?.[key] : null;
+                    return (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                        <span style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: 500 }}>
+                          {getCritLabel(key)}
+                        </span>
+                        {getCritBadge(val)}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Progreso por unidad Card */}
+              <div className="glass" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                <h3 style={{ margin: '0 0 20px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+                  Progreso por unidad
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {unidades.length === 0 ? (
+                    <div style={{ color: '#64748b', fontSize: '0.95rem', textAlign: 'center' }}>No hay unidades registradas en este grupo.</div>
+                  ) : unidades.map(u => {
+                    const uEval = evaluaciones.find(e => e.unidadId === u.id);
+                    const evalCount = getEvaluatedCount(uEval?.rubrica);
+                    const percent = (evalCount / 5) * 100;
+                    return (
+                      <div key={u.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                          <span style={{ color: '#1e293b', fontWeight: 600 }}>{u.titulo}</span>
+                          <span style={{ color: '#64748b', fontWeight: 500 }}>{evalCount}/5 criterios</span>
+                        </div>
+                        <div style={{ width: '100%', height: '8px', background: '#f1f5f9', borderRadius: '999px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, height: '100%', background: '#2563eb', borderRadius: '999px', transition: 'width 0.4s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {profileTab === 'historial' && (
+            <div className="glass" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+                Historial de Evaluaciones
+              </h3>
+              {evaluaciones.length === 0 ? (
+                <div style={{ color: '#64748b', fontSize: '0.95rem', textAlign: 'center', padding: '24px' }}>No hay evaluaciones registradas para este estudiante.</div>
+              ) : (
+                <div className="table-wrap">
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #f1f5f9', textAlign: 'left' }}>
+                        <th style={{ padding: '12px' }}>Fecha</th>
+                        <th style={{ padding: '12px' }}>Criterios Evaluados</th>
+                        <th style={{ padding: '12px' }}>Observación Escrita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evaluaciones.map(e => (
+                        <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '12px', fontWeight: 600 }}>{new Date(e.createdAt).toLocaleDateString('es-EC')}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span className="badge badge-progress" style={{ background: '#dbeafe', color: '#2563eb', padding: '4px 8px' }}>
+                              {getEvaluatedCount(e.rubrica)}/5
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', color: '#475569', fontSize: '0.9rem' }}>{e.notaEscrita || 'Sin observaciones'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {profileTab === 'notas' && (
+            <div className="glass" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', fontFamily: 'Outfit, sans-serif' }}>
+                Observaciones y Notas
+              </h3>
+              {evaluaciones.filter(e => e.notaEscrita).length === 0 ? (
+                <div style={{ color: '#64748b', fontSize: '0.95rem', textAlign: 'center', padding: '24px' }}>No hay observaciones registradas para este estudiante.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {evaluaciones.filter(e => e.notaEscrita).map(e => {
+                    const u = unidades.find(un => un.id === e.unidadId);
+                    return (
+                      <div key={e.id} style={{ padding: '18px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
+                          <span>{u ? u.titulo : 'Evaluación'}</span>
+                          <span>{new Date(e.createdAt).toLocaleDateString('es-EC')}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.95rem', color: '#1e293b', lineHeight: 1.6 }}>
+                          {e.notaEscrita}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function ClasesRegistro({ 
   clases, 
@@ -13,6 +270,7 @@ export default function ClasesRegistro({
   showToast 
 }) {
   const [activeTab, setActiveTab] = useState(null); // null = home, 'aulas' | 'unidades'
+  const [selectedAlumnoPerfil, setSelectedAlumnoPerfil] = useState(null);
 
   // --- STATE FOR ALUMNOS ---
   const [alumnos, setAlumnos] = useState([]);
@@ -28,6 +286,7 @@ export default function ClasesRegistro({
   // Load students when active class changes
   useEffect(() => {
     setActiveTab(null);
+    setSelectedAlumnoPerfil(null);
     if (activeClassId) {
       refreshAlumnos();
     } else {
@@ -338,63 +597,80 @@ export default function ClasesRegistro({
 
           {/* ── TAB: ALUMNOS ── */}
           {activeTab === 'aulas' && (
-            <div className="sub-view">
-              <SubViewHeader
-                onBack={() => setActiveTab(null)}
-                title="Alumnos Registrados"
-                subtitle="Gestione los estudiantes del grupo"
-                icon={<Users size={18} />}
-                actions={
-                  <button className="btn btn-primary btn-sm" onClick={() => { setAlumnoForm({ id: '', nombre: '', representante: '', padreCorreo: '', telefono: '' }); setShowAddAlumnoModal(true); }}>
-                    <Plus size={15} /> Agregar Estudiante
-                  </button>
-                }
+            selectedAlumnoPerfil ? (
+              <StudentProfile 
+                alumno={selectedAlumnoPerfil} 
+                activeClassName={clases.find(c => c.id === activeClassId)?.nombre || 'Aula'} 
+                onBack={() => setSelectedAlumnoPerfil(null)} 
+                showToast={showToast} 
               />
+            ) : (
+              <div className="sub-view">
+                <SubViewHeader
+                  onBack={() => setActiveTab(null)}
+                  title="Alumnos Registrados"
+                  subtitle="Gestione los estudiantes del grupo"
+                  icon={<Users size={18} />}
+                  actions={
+                    <button className="btn btn-primary btn-sm" onClick={() => { setAlumnoForm({ id: '', nombre: '', representante: '', padreCorreo: '', telefono: '' }); setShowAddAlumnoModal(true); }}>
+                      <Plus size={15} /> Agregar Estudiante
+                    </button>
+                  }
+                />
 
-              {loadingAlumnos ? (
-                <div className="loading-container">
-                  <Loader className="spinner" />
-                </div>
-              ) : alumnos.length === 0 ? (
-                <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#ffffff' }}>
-                  <Users size={40} className="text-muted" style={{ margin: '0 auto 1rem' }} />
-                  <h4 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>No hay estudiantes registrados</h4>
-                  <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
-                    Agregue su primer estudiante en este aula para comenzar a calificar sus actividades.
-                  </p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Nombre del Niño</th>
-                        <th>Correo del Padre/Tutor</th>
-                        <th style={{ width: '15%' }} className="text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alumnos.map(a => (
-                        <tr key={a.id}>
-                          <td style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{a.nombre}</td>
-                          <td>{a.padreCorreo}</td>
-                          <td className="text-right">
-                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                              <button className="btn-icon-only btn-sm" onClick={() => handleEditAlumnoClick(a)} title="Editar">
-                                <Edit2 size={14} />
-                              </button>
-                              <button className="btn-icon-only btn-sm" onClick={() => handleDeleteAlumno(a.id)} style={{ color: 'var(--danger)' }} title="Eliminar">
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
+                {loadingAlumnos ? (
+                  <div className="loading-container">
+                    <Loader className="spinner" />
+                  </div>
+                ) : alumnos.length === 0 ? (
+                  <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#ffffff' }}>
+                    <Users size={40} className="text-muted" style={{ margin: '0 auto 1rem' }} />
+                    <h4 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>No hay estudiantes registrados</h4>
+                    <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                      Agregue su primer estudiante en este aula para comenzar a calificar sus actividades.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Nombre del Niño</th>
+                          <th>Correo del Padre/Tutor</th>
+                          <th style={{ width: '25%' }} className="text-right">Acciones</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+                      </thead>
+                      <tbody>
+                        {alumnos.map(a => (
+                          <tr key={a.id}>
+                            <td style={{ fontWeight: 'bold', color: 'var(--text-white)' }}>{a.nombre}</td>
+                            <td>{a.padreCorreo}</td>
+                            <td className="text-right">
+                              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                <button 
+                                  className="btn btn-ghost btn-sm" 
+                                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 600, color: '#2563eb' }}
+                                  onClick={() => setSelectedAlumnoPerfil(a)} 
+                                  title="Ver Perfil"
+                                >
+                                  <Eye size={12} /> Perfil
+                                </button>
+                                <button className="btn-icon-only btn-sm" onClick={() => handleEditAlumnoClick(a)} title="Editar">
+                                  <Edit2 size={14} />
+                                </button>
+                                <button className="btn-icon-only btn-sm" onClick={() => handleDeleteAlumno(a.id)} style={{ color: 'var(--danger)' }} title="Eliminar">
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )
           )}
 
           {/* ── TAB: UNIDADES DIDÁCTICAS ── */}

@@ -60,7 +60,14 @@ export default function App() {
       case 'evaluacion':
         return <EvaluacionDashboard activeClassId={clasesHook.activeClassId} showToast={showToast} />;
       case 'seguimiento':
-        return <Seguimiento activeClassId={clasesHook.activeClassId} showToast={showToast} />;
+        return (
+          <Seguimiento 
+            clases={clasesHook.clases}
+            activeClassId={clasesHook.activeClassId} 
+            setActiveClassId={clasesHook.setActiveClassId} 
+            showToast={showToast} 
+          />
+        );
       default:
         return <div style={{ color: 'var(--text-white)' }}>Vista no encontrada</div>;
     }
