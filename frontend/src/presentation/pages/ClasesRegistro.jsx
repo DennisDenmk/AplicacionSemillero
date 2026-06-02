@@ -5,7 +5,7 @@ import UnidadesDidacticas from './UnidadesDidacticas';
 import SectionHome from '../components/SectionHome';
 import SubViewHeader from '../components/SubViewHeader';
 
-function StudentProfile({ alumno, activeClassName, onBack, showToast }) {
+function StudentProfile({ alumno, activeClassName, onBack, showToast, onNavigate }) {
   const [profileTab, setProfileTab] = useState('progreso'); // 'progreso' | 'historial' | 'notas'
   const [evaluaciones, setEvaluaciones] = useState([]);
   const [unidades, setUnidades] = useState([]);
@@ -77,14 +77,14 @@ function StudentProfile({ alumno, activeClassName, onBack, showToast }) {
           <button 
             className="btn btn-primary btn-sm" 
             style={{ background: '#2563eb', borderColor: '#2563eb', padding: '8px 16px', borderRadius: '8px', fontWeight: 600 }}
-            onClick={() => window.location.href = `/evaluacion`}
+            onClick={() => onNavigate('evaluacion')}
           >
             Evaluar
           </button>
           <button 
             className="btn btn-secondary btn-sm"
             style={{ background: '#fff', border: '1px solid #cbd5e1', color: '#1e293b', padding: '8px 16px', borderRadius: '8px', fontWeight: 600 }}
-            onClick={() => window.location.href = `/seguimiento`}
+            onClick={() => onNavigate('seguimiento', { subView: 'individual', alumnoId: alumno.id })}
           >
             Ficha de monitoreo
           </button>
@@ -267,7 +267,8 @@ export default function ClasesRegistro({
   activeClassId, 
   setActiveClassId, 
   onRefreshClases, 
-  showToast 
+  showToast,
+  onNavigate
 }) {
   const [activeTab, setActiveTab] = useState(null); // null = home, 'aulas' | 'unidades'
   const [selectedAlumnoPerfil, setSelectedAlumnoPerfil] = useState(null);
@@ -603,6 +604,7 @@ export default function ClasesRegistro({
                 activeClassName={clases.find(c => c.id === activeClassId)?.nombre || 'Aula'} 
                 onBack={() => setSelectedAlumnoPerfil(null)} 
                 showToast={showToast} 
+                onNavigate={onNavigate}
               />
             ) : (
               <div className="sub-view">

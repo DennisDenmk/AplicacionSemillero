@@ -41,11 +41,11 @@ export const api = {
   getEvaluaciones:      (claseId) => EvaluacionService.getEvaluaciones(claseId),
   getEvaluacionesAlumno:(alumnoId) => EvaluacionService.getEvaluacionesAlumno(alumnoId),
   createEvaluacion:     (data) => EvaluacionService.createEvaluacion(data),
-  getMonitoreo:         (alumnoId, unidadId) => EvaluacionService.getMonitoreo(alumnoId, unidadId),
+  getMonitoreo:         (alumnoId, unidadId, tareaId) => EvaluacionService.getMonitoreo(alumnoId, unidadId, tareaId),
   saveMonitoreo:        (data) => EvaluacionService.saveMonitoreo(data),
-  getAutoevaluaciones:  (claseId, alumnoId, unidadId) => EvaluacionService.getAutoevaluaciones(claseId, alumnoId, unidadId),
+  getAutoevaluaciones:  (claseId, alumnoId, unidadId, tareaId) => EvaluacionService.getAutoevaluaciones(claseId, alumnoId, unidadId, tareaId),
   createAutoevaluacion: (data) => EvaluacionService.createAutoevaluacion(data),
-  getMatriz:            (claseId, unidadId) => EvaluacionService.getMatriz(claseId, unidadId),
+  getMatriz:            (claseId, unidadId, tareaId) => EvaluacionService.getMatriz(claseId, unidadId, tareaId),
 
   // Tareas (por unidad — flujo principal)
   getTareasByUnidad: (unidadId) => TareaService.getTareasByUnidad(unidadId),

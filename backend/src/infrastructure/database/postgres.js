@@ -198,6 +198,30 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_tareas_unidad') THEN
         ALTER TABLE "tareas" ADD CONSTRAINT "fk_tareas_unidad" FOREIGN KEY ("unidad_id") REFERENCES "unidades" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
     END IF;
+
+    -- Migración: agregar tarea_id a evaluaciones
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='evaluaciones' AND column_name='tarea_id') THEN
+        ALTER TABLE "evaluaciones" ADD COLUMN "tarea_id" uuid;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_evaluaciones_tarea') THEN
+        ALTER TABLE "evaluaciones" ADD CONSTRAINT "fk_evaluaciones_tarea" FOREIGN KEY ("tarea_id") REFERENCES "tareas" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
+    END IF;
+
+    -- Migración: agregar tarea_id a monitoreo
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='monitoreo' AND column_name='tarea_id') THEN
+        ALTER TABLE "monitoreo" ADD COLUMN "tarea_id" uuid;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitoreo_tarea') THEN
+        ALTER TABLE "monitoreo" ADD CONSTRAINT "fk_monitoreo_tarea" FOREIGN KEY ("tarea_id") REFERENCES "tareas" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
+    END IF;
+
+    -- Migración: agregar tarea_id a autoevaluacion
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='autoevaluacion' AND column_name='tarea_id') THEN
+        ALTER TABLE "autoevaluacion" ADD COLUMN "tarea_id" uuid;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_autoevaluacion_tarea') THEN
+        ALTER TABLE "autoevaluacion" ADD CONSTRAINT "fk_autoevaluacion_tarea" FOREIGN KEY ("tarea_id") REFERENCES "tareas" ("id") ON DELETE CASCADE DEFERRABLE INITIALLY IMMEDIATE;
+    END IF;
 END $$;
 `;
 

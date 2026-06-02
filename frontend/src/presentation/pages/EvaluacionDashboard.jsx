@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Award, FileText, CheckSquare, Save, Loader, AlertCircle, X, CheckCircle, XCircle, BookOpen } from 'lucide-react';
+import { Award, FileText, CheckSquare, Save, Loader, AlertCircle, X, CheckCircle, XCircle, BookOpen, Target, Sparkles } from 'lucide-react';
 import { api } from '../../services/api';
 import SubViewHeader from '../components/SubViewHeader';
 
@@ -11,11 +11,13 @@ const CRITERIOS = [
   { key: 'pensamientoLogico', label: 'Pensamiento Lógico' },
   { key: 'metacognicion',     label: 'Metacognición' },
 ];
+
 const NIVELES = [
   { key: 'I',  label: 'Iniciado',   color: '#ef4444', bg: 'rgba(239,68,68,0.09)'  },
   { key: 'EP', label: 'En Proceso', color: '#f59e0b', bg: 'rgba(245,158,11,0.09)' },
   { key: 'L',  label: 'Logrado',    color: '#22c55e', bg: 'rgba(34,197,94,0.09)'  },
 ];
+
 const AUTOEVAL_PREGUNTAS = [
   '¿Planifiqué la actividad didáctica con anterioridad y de forma estructurada?',
   '¿Generé situaciones de desequilibrio cognitivo sin dar las respuestas de forma directa?',
@@ -24,17 +26,21 @@ const AUTOEVAL_PREGUNTAS = [
   '¿Evité imponer directrices dogmáticas y promoví la autorregulación del estudiante?',
   '¿Registré las observaciones de forma fidedigna en la ficha de monitoreo individual?',
 ];
+
 const EMPTY_RUBRICA   = { clasificacion: '', seriacion: '', construccion: '', pensamientoLogico: '', metacognicion: '' };
 const EMPTY_MONITOREO = { clasificacionObs: '', clasificacionApoyo: '', seriacionObs: '', seriacionApoyo: '', asimilacionObs: '', asimilacionApoyo: '', justificacionObs: '', justificacionApoyo: '', autorregulacionObs: '', autorregulacionApoyo: '' };
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function EvaluacionDashboard({ activeClassId, showToast }) {
   // State
-  const [unidades, setUnidades]         = useState([]);
+  const [unidades, setUnidades]                 = useState([]);
   const [selectedUnidadId, setSelectedUnidadId] = useState('');
-  const [matriz, setMatriz]             = useState([]);
-  const [loading, setLoading]           = useState(false);
-  const [saving, setSaving]             = useState(false);
+  const [tareas, setTareas]                     = useState([]);
+  const [selectedTareaId, setSelectedTareaId]   = useState('');
+  const [matriz, setMatriz]                     = useState([]);
+  const [loading, setLoading]                   = useState(false);
+  const [saving, setSaving]                     = useState(false);
+  const [hasAutoeval, setHasAutoeval]           = useState(false);
 
   // Modal state
   const [modal, setModal]               = useState(null); // null | { type: 'rubrica'|'monitoreo'|'autoeval', alumnoId, alumnoNombre }
@@ -52,20 +58,61 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
       .then(uns => {
         const activas = uns.filter(u => !u.archivada);
         setUnidades(activas);
-        if (activas.length > 0) setSelectedUnidadId(activas[0].id);
+        if (activas.length > 0) {
+          setSelectedUnidadId(activas[0].id);
+        } else {
+          setSelectedUnidadId('');
+        }
       })
-      .catch(e => showToast(e.message, 'danger'));
+      .catch(e => showToast(e.message || 'Error al cargar unidades', 'danger'));
   }, [activeClassId]);
 
-  // ── Load matriz when unidad changes ─────────────────────────────────────
-  const refreshMatriz = useCallback(() => {
-    if (!activeClassId || !selectedUnidadId) { setMatriz([]); return; }
-    setLoading(true);
-    api.getMatriz(activeClassId, selectedUnidadId)
-      .then(data => setMatriz(data))
-      .catch(e => showToast(e.message, 'danger'))
-      .finally(() => setLoading(false));
+  // ── Load unit-level autoevaluacion status when selectedUnidadId changes ───
+  useEffect(() => {
+    if (!activeClassId || !selectedUnidadId) {
+      setHasAutoeval(false);
+      return;
+    }
+    api.getAutoevaluaciones(activeClassId, null, selectedUnidadId)
+      .then(list => {
+        setHasAutoeval(list.length > 0);
+      })
+      .catch(() => setHasAutoeval(false));
   }, [activeClassId, selectedUnidadId]);
+
+  // ── Load tareas when selectedUnidadId changes ─────────────────────────────
+  useEffect(() => {
+    if (!selectedUnidadId) {
+      setTareas([]);
+      setSelectedTareaId('');
+      return;
+    }
+    setLoading(true);
+    api.getTareasByUnidad(selectedUnidadId)
+      .then(ts => {
+        setTareas(ts);
+        if (ts.length > 0) {
+          setSelectedTareaId(ts[0].id);
+        } else {
+          setSelectedTareaId('');
+        }
+      })
+      .catch(e => showToast(e.message || 'Error al cargar tareas de la unidad', 'danger'))
+      .finally(() => setLoading(false));
+  }, [selectedUnidadId]);
+
+  // ── Load matriz when tarea changes ─────────────────────────────────────
+  const refreshMatriz = useCallback(() => {
+    if (!activeClassId || !selectedUnidadId || !selectedTareaId) { 
+      setMatriz([]); 
+      return; 
+    }
+    setLoading(true);
+    api.getMatriz(activeClassId, selectedUnidadId, selectedTareaId)
+      .then(data => setMatriz(data))
+      .catch(e => showToast(e.message || 'Error al cargar matriz', 'danger'))
+      .finally(() => setLoading(false));
+  }, [activeClassId, selectedUnidadId, selectedTareaId]);
 
   useEffect(() => { refreshMatriz(); }, [refreshMatriz]);
 
@@ -73,22 +120,26 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
   const openModal = async (type, alumnoId, alumnoNombre) => {
     setModal({ type, alumnoId, alumnoNombre });
     if (type === 'rubrica') {
-      setRubrica(EMPTY_RUBRICA); setNotaEscrita('');
+      setRubrica(EMPTY_RUBRICA); 
+      setNotaEscrita('');
       try {
         const evals = await api.getEvaluacionesAlumno(alumnoId);
-        const found = evals.find(e => e.unidadId === selectedUnidadId);
-        if (found) { setRubrica({ ...EMPTY_RUBRICA, ...(found.rubrica || {}) }); setNotaEscrita(found.notaEscrita || ''); }
+        const found = evals.find(e => e.unidadId === selectedUnidadId && e.tareaId === selectedTareaId);
+        if (found) { 
+          setRubrica({ ...EMPTY_RUBRICA, ...(found.rubrica || {}) }); 
+          setNotaEscrita(found.notaEscrita || ''); 
+        }
       } catch (_) {}
     } else if (type === 'monitoreo') {
       setMonitoreo(EMPTY_MONITOREO);
       try {
-        const m = await api.getMonitoreo(alumnoId, selectedUnidadId);
+        const m = await api.getMonitoreo(alumnoId, selectedUnidadId, selectedTareaId);
         if (m) setMonitoreo({ ...EMPTY_MONITOREO, ...m });
       } catch (_) {}
     } else if (type === 'autoeval') {
       setAutorespuestas(AUTOEVAL_PREGUNTAS.map(q => ({ pregunta: q, respuesta: '', reflexion: '' })));
       try {
-        const list = await api.getAutoevaluaciones(activeClassId, alumnoId, selectedUnidadId);
+        const list = await api.getAutoevaluaciones(activeClassId, null, selectedUnidadId);
         if (list.length > 0 && list[0].respuestas) {
           setAutorespuestas(list[0].respuestas);
         }
@@ -101,39 +152,71 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
   // ── Save handlers ────────────────────────────────────────────────────────
   const saveRubrica = async e => {
     e.preventDefault();
-    if (!Object.values(rubrica).every(v => v !== '')) return showToast('Evalúe todos los criterios', 'warning');
+    if (!Object.values(rubrica).every(v => v !== '')) {
+      return showToast('Evalúe todos los criterios de desarrollo cognitivo', 'warning');
+    }
     setSaving(true);
     try {
-      await api.createEvaluacion({ alumnoId: modal.alumnoId, unidadId: selectedUnidadId || null, claseId: activeClassId, rubrica, notaEscrita });
-      showToast('Rúbrica guardada', 'success');
-      closeModal(); refreshMatriz();
-    } catch (e) { showToast(e.message, 'danger'); }
-    finally { setSaving(false); }
+      await api.createEvaluacion({ 
+        alumnoId: modal.alumnoId, 
+        unidadId: selectedUnidadId || null, 
+        tareaId: selectedTareaId || null, 
+        claseId: activeClassId, 
+        rubrica, 
+        notaEscrita 
+      });
+      showToast('Rúbrica de la tarea guardada con éxito', 'success');
+      closeModal(); 
+      refreshMatriz();
+    } catch (e) { 
+      showToast(e.message || 'Error al guardar la rúbrica', 'danger'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const saveMonitoreo = async e => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.saveMonitoreo({ alumnoId: modal.alumnoId, unidadId: selectedUnidadId || null, ...monitoreo });
-      showToast('Ficha de monitoreo guardada', 'success');
-      closeModal(); refreshMatriz();
-    } catch (e) { showToast(e.message, 'danger'); }
-    finally { setSaving(false); }
+      await api.saveMonitoreo({ 
+        alumnoId: modal.alumnoId, 
+        unidadId: selectedUnidadId || null, 
+        tareaId: selectedTareaId || null, 
+        ...monitoreo 
+      });
+      showToast('Ficha de monitoreo de la tarea guardada', 'success');
+      closeModal(); 
+      refreshMatriz();
+    } catch (e) { 
+      showToast(e.message || 'Error al guardar monitoreo', 'danger'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const saveAutoeval = async e => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.createAutoevaluacion({ claseId: activeClassId, unidadId: selectedUnidadId || null, alumnoId: modal.alumnoId, respuestas: autorespuestas });
-      showToast('Autoevaluación guardada', 'success');
-      closeModal(); refreshMatriz();
-    } catch (e) { showToast(e.message, 'danger'); }
-    finally { setSaving(false); }
+      await api.createAutoevaluacion({ 
+        claseId: activeClassId, 
+        unidadId: selectedUnidadId || null, 
+        tareaId: null, 
+        alumnoId: null, 
+        respuestas: autorespuestas 
+      });
+      showToast('Autoevaluación de la unidad guardada con éxito', 'success');
+      setHasAutoeval(true);
+      closeModal(); 
+    } catch (e) { 
+      showToast(e.message || 'Error al guardar autoevaluación', 'danger'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // ── StatusIcon Helper ─────────────────────────────────────────────────────
   const StatusIcon = ({ done, onClick, label }) => (
     <button
       onClick={onClick}
@@ -147,57 +230,154 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
       onMouseEnter={e => e.currentTarget.style.background = 'rgba(148,163,184,0.1)'}
       onMouseLeave={e => e.currentTarget.style.background = 'none'}
     >
-      {done
-        ? <CheckCircle size={22} style={{ color: '#22c55e' }} />
-        : <XCircle    size={22} style={{ color: '#ef4444' }} />
-      }
+      {done ? (
+        <CheckCircle size={22} style={{ color: '#22c55e' }} />
+      ) : (
+        <XCircle size={22} style={{ color: '#ef4444' }} />
+      )}
     </button>
   );
 
-  // ── Guard ────────────────────────────────────────────────────────────────
+  // ── Guards ────────────────────────────────────────────────────────────────
   if (unidades.length === 0 && !loading) return (
-    <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#fff' }}>
+    <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: '24px', background: '#fff', border: '1px solid #e2e8f0' }}>
       <AlertCircle size={48} className="text-muted" style={{ margin: '0 auto 1rem' }} />
-      <h3 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>No hay tareas registradas</h3>
-      <p className="text-muted">Cree al menos una Unidad Didáctica en la sección correspondiente para poder evaluar.</p>
+      <h3 className="font-outfit text-white" style={{ fontWeight: 'bold' }}>No hay unidades didácticas</h3>
+      <p className="text-muted">Cree al menos una Unidad Didáctica en la sección correspondiente antes de poder evaluar.</p>
     </div>
   );
 
   // ── Main render ──────────────────────────────────────────────────────────
   return (
-    <div className="animate-slide-up">
-
-      {/* ── Selector de Tarea ── */}
-      <div style={{ marginBottom: '1.75rem' }}>
-        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          <BookOpen size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          Seleccione una Tarea / Unidad Didáctica
-        </label>
-        <select
-          className="select-input"
-          value={selectedUnidadId}
-          onChange={e => setSelectedUnidadId(e.target.value)}
-          style={{ maxWidth: 480 }}
-        >
-          <option value="">— Seleccione una tarea —</option>
-          {unidades.map(u => <option key={u.id} value={u.id}>{u.titulo}</option>)}
-        </select>
+    <div className="animate-slide-up" style={{ padding: '8px' }}>
+      
+      {/* Header */}
+      <div style={{ marginBottom: '20px' }}>
+        <h3 className="font-outfit text-white" style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 4px' }}>Rúbricas &amp; Evaluación</h3>
+        <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Valore el desempeño cognitivo de los alumnos y complete su autoevaluación pedagógica (RF-D04)</p>
       </div>
 
-      {/* ── Tabla Matriz ── */}
+      {/* ── Selectores de Unidad y Tarea ── */}
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
+        
+        {/* Selector de Unidad */}
+        <div style={{ flex: '1 1 250px' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <BookOpen size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            1. Seleccione Unidad Didáctica
+          </label>
+          <select
+            className="select-input"
+            value={selectedUnidadId}
+            onChange={e => setSelectedUnidadId(e.target.value)}
+            style={{ width: '100%', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 12px', color: '#1e293b', fontWeight: 600 }}
+          >
+            <option value="" disabled>— Seleccione una unidad —</option>
+            {unidades.map(u => <option key={u.id} value={u.id}>{u.titulo}</option>)}
+          </select>
+        </div>
+
+        {/* Selector de Tarea */}
+        <div style={{ flex: '1 1 250px' }}>
+          <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <Target size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+            2. Seleccione Tarea / Actividad Curricular
+          </label>
+          <select
+            className="select-input"
+            value={selectedTareaId}
+            onChange={e => setSelectedTareaId(e.target.value)}
+            disabled={tareas.length === 0}
+            style={{ width: '100%', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 12px', color: '#1e293b', fontWeight: 600 }}
+          >
+            {tareas.length === 0 ? (
+              <option value="">— No hay tareas en esta unidad —</option>
+            ) : (
+              <>
+                <option value="" disabled>— Seleccione una tarea —</option>
+                {tareas.map(t => <option key={t.id} value={t.id}>{t.titulo} ({t.actividadTipo})</option>)}
+              </>
+            )}
+          </select>
+        </div>
+      </div>
+
+      {/* ── Card de Autoevaluación Docente de la Unidad ── */}
       {selectedUnidadId && (
-        <div style={{ background: '#ffffff', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid rgba(148,163,184,0.12)' }}>
+        <div className="glass animate-slide-up" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          padding: '1rem 1.25rem', 
+          borderRadius: '16px', 
+          background: '#fff', 
+          border: '1px solid rgba(148,163,184,0.18)', 
+          marginBottom: '24px',
+          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ 
+              background: hasAutoeval ? 'rgba(34,197,94,0.1)' : 'rgba(79,70,229,0.08)', 
+              color: hasAutoeval ? '#22c55e' : '#4f46e5', 
+              padding: '10px', 
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CheckSquare size={22} />
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 2px', fontWeight: 700, color: '#1e293b', fontSize: '0.9rem' }}>
+                Autoevaluación de la Práctica Docente
+              </h4>
+              <p className="text-muted" style={{ margin: 0, fontSize: '0.78rem' }}>
+                {hasAutoeval 
+                  ? '✅ Su autoevaluación pedagógica para esta Unidad ya ha sido registrada.' 
+                  : '📝 Evalúe su mediación didáctica y andamiaje pedagógico general de esta Unidad.'}
+              </p>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            className={hasAutoeval ? 'btn btn-secondary btn-sm' : 'btn btn-primary btn-sm'}
+            onClick={() => openModal('autoeval', null, null)}
+            style={{ padding: '0.45rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+          >
+            <Sparkles size={14} />
+            {hasAutoeval ? 'Editar Autoevaluación' : 'Registrar Autoevaluación'}
+          </button>
+        </div>
+      )}
+
+      {/* ── Warning if no tasks in selected unit ── */}
+      {selectedUnidadId && tareas.length === 0 && !loading && (
+        <div className="glass" style={{ padding: '2.5rem', textAlign: 'center', borderRadius: '16px', background: '#fff', border: '1px solid #fecaca', marginBottom: '24px' }}>
+          <AlertCircle size={40} style={{ color: '#ef4444', margin: '0 auto 12px' }} />
+          <h4 style={{ fontWeight: 700, color: '#1e293b', margin: '0 0 6px' }}>Esta Unidad no tiene tareas registradas</h4>
+          <p className="text-muted" style={{ fontSize: '0.85rem', margin: '0 0 16px' }}>
+            Para poder evaluar el desempeño piagetiano, debe registrar al menos una ficha didáctica o tarea cognitiva en esta unidad.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>
+            💡 Vaya a "Mis Aulas &amp; Registro" → Despliegue la Unidad → Presione "Añadir Ficha Didáctica".
+          </p>
+        </div>
+      )}
+
+      {/* ── Tabla Matriz Evaluaciones ── */}
+      {selectedUnidadId && selectedTareaId && (
+        <div style={{ background: '#ffffff', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
           {loading ? (
             <div className="loading-container" style={{ padding: '3rem' }}><Loader className="spinner" /></div>
           ) : matriz.length === 0 ? (
             <div style={{ padding: '3rem', textAlign: 'center' }}>
-              <p className="text-muted" style={{ fontSize: '0.9rem' }}>No hay alumnos registrados en este grupo.</p>
+              <p className="text-muted" style={{ fontSize: '0.9rem' }}>No hay alumnos registrados en este grupo para evaluar.</p>
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid rgba(148,163,184,0.15)' }}>
-                  {['Nombre del Alumno', 'Rúbrica Cognitiva', 'Ficha de Monitoreo', 'Autoevaluación Docente'].map((h, i) => (
+                  {['Nombre del Alumno', 'Rúbrica Cognitiva', 'Ficha de Monitoreo'].map((h, i) => (
                     <th key={i} style={{
                       padding: '0.9rem 1.25rem', textAlign: i === 0 ? 'left' : 'center',
                       fontSize: '0.75rem', fontWeight: 700, color: '#64748b',
@@ -234,9 +414,6 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
                     <td style={{ textAlign: 'center' }}>
                       <StatusIcon done={row.monitoreo} onClick={() => openModal('monitoreo', row.alumnoId, row.nombre)} label="Monitoreo" />
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <StatusIcon done={row.autoeval}  onClick={() => openModal('autoeval',  row.alumnoId, row.nombre)} label="Autoevaluación" />
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -254,12 +431,16 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
             <div className="modal-header">
               <div>
                 <h3 className="modal-title" style={{ marginBottom: '0.15rem' }}>
-                  {modal.type === 'rubrica'   && '🏅 Rúbrica Cognitiva'}
+                  {modal.type === 'rubrica'   && '🏅 Rúbrica Cognitiva de la Tarea'}
                   {modal.type === 'monitoreo' && '📋 Ficha de Monitoreo'}
-                  {modal.type === 'autoeval'  && '✅ Autoevaluación Docente'}
+                  {modal.type === 'autoeval'  && '✅ Autoevaluación Docente (de la Unidad)'}
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Alumno: <strong style={{ color: 'var(--text-white)' }}>{modal.alumnoNombre}</strong>
+                  {modal.alumnoId ? (
+                    <>Alumno: <strong style={{ color: 'var(--text-white)' }}>{modal.alumnoNombre}</strong></>
+                  ) : (
+                    <>Unidad Didáctica: <strong style={{ color: 'var(--text-white)' }}>{unidades.find(u => u.id === selectedUnidadId)?.titulo}</strong></>
+                  )}
                 </p>
               </div>
               <button className="btn-close-modal" onClick={closeModal}><X size={22} /></button>
@@ -295,7 +476,7 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
                 <div className="input-group" style={{ marginBottom: '1.25rem' }}>
                   <label>Observación escrita (opcional):</label>
                   <textarea value={notaEscrita} onChange={e => setNotaEscrita(e.target.value)}
-                    placeholder="Registre observaciones..." style={{ minHeight: 70 }} />
+                    placeholder="Registre observaciones específicas sobre el desempeño en esta tarea..." style={{ minHeight: 70 }} />
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
@@ -321,12 +502,12 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
                       <div className="input-group" style={{ margin: 0 }}>
                         <label style={{ fontSize: '0.7rem' }}>Observaciones</label>
-                        <textarea value={monitoreo[row.obs]} onChange={e => setMonitoreo(p => ({ ...p, [row.obs]: e.target.value }))}
+                        <textarea value={monitoreo[row.obs] || ''} onChange={e => setMonitoreo(p => ({ ...p, [row.obs]: e.target.value }))}
                           placeholder="Conducta observada…" style={{ minHeight: 60 }} />
                       </div>
                       <div className="input-group" style={{ margin: 0 }}>
                         <label style={{ fontSize: '0.7rem' }}>Acciones de Apoyo</label>
-                        <textarea value={monitoreo[row.apoyo]} onChange={e => setMonitoreo(p => ({ ...p, [row.apoyo]: e.target.value }))}
+                        <textarea value={monitoreo[row.apoyo] || ''} onChange={e => setMonitoreo(p => ({ ...p, [row.apoyo]: e.target.value }))}
                           placeholder="Estrategias…" style={{ minHeight: 60 }} />
                       </div>
                     </div>
@@ -363,7 +544,7 @@ export default function EvaluacionDashboard({ activeClassId, showToast }) {
                             }}>{op}</button>
                         ))}
                       </div>
-                      <textarea value={r.reflexion}
+                      <textarea value={r.reflexion || ''}
                         onChange={e => setAutorespuestas(p => p.map((x, idx) => idx === i ? { ...x, reflexion: e.target.value } : x))}
                         placeholder="Reflexión libre (opcional)…"
                         style={{ width: '100%', minHeight: 44, fontSize: '0.78rem', borderRadius: '8px', padding: '0.4rem 0.65rem', border: '1px solid rgba(148,163,184,0.18)', background: 'rgba(248,250,252,0.5)', color: 'var(--text-white)', resize: 'vertical', boxSizing: 'border-box' }} />

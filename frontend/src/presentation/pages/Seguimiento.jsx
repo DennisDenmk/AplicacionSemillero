@@ -15,12 +15,12 @@ const CRITERIOS = [
 const NIVEL_COLORS = { I: '#ef4444', EP: '#f59e0b', L: '#22c55e' };
 const NIVEL_BG     = { I: '#fee2e2', EP: '#fef3c7', L: '#dcfce7' };
 
-export default function Seguimiento({ clases = [], activeClassId, setActiveClassId, showToast }) {
-  const [subView, setSubView] = useState(null); // null | 'individual' | 'grupal'
+export default function Seguimiento({ clases = [], activeClassId, setActiveClassId, showToast, navParams }) {
+  const [subView, setSubView] = useState(navParams?.subView || null); // null | 'individual' | 'grupal'
   const [alumnos, setAlumnos] = useState([]);
   const [unidades, setUnidades] = useState([]);
   const [evaluaciones, setEvaluaciones] = useState([]);
-  const [selectedAlumnoId, setSelectedAlumnoId] = useState('');
+  const [selectedAlumnoId, setSelectedAlumnoId] = useState(navParams?.alumnoId || '');
   const [filtroUnidad, setFiltroUnidad] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +28,12 @@ export default function Seguimiento({ clases = [], activeClassId, setActiveClass
   const [filtroFechaHasta, setFiltroFechaHasta] = useState('');
   const [notaSeguimiento, setNotaSeguimiento] = useState('');
   const [savingNota, setSavingNota] = useState(false);
+
+  // Sync navParams dynamically if they change
+  useEffect(() => {
+    if (navParams?.subView) setSubView(navParams.subView);
+    if (navParams?.alumnoId) setSelectedAlumnoId(navParams.alumnoId);
+  }, [navParams]);
 
   // Load class data
   const load = useCallback(() => {
@@ -44,7 +50,7 @@ export default function Seguimiento({ clases = [], activeClassId, setActiveClass
       
       // Auto-select first student if none selected
       if (als.length > 0) {
-        setSelectedAlumnoId(als[0].id);
+        setSelectedAlumnoId(prev => prev || navParams?.alumnoId || als[0].id);
       }
       
       // Auto-select latest unit as active filter for better initial dashboard view
@@ -53,7 +59,7 @@ export default function Seguimiento({ clases = [], activeClassId, setActiveClass
       }
     }).catch(e => showToast(e.message || 'Error al cargar datos', 'danger'))
       .finally(() => setLoading(false));
-  }, [activeClassId]);
+  }, [activeClassId, navParams, filtroUnidad]);
 
   useEffect(() => { load(); }, [load]);
 

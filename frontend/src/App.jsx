@@ -17,6 +17,12 @@ export default function App() {
   const clasesHook = useClases(showToast);
 
   const [currentView, setCurrentView] = useState('clases');
+  const [navParams, setNavParams] = useState(null);
+
+  const handleNavigate = (view, params = null) => {
+    setCurrentView(view);
+    setNavParams(params);
+  };
   const [isSidebarActive, setIsSidebarActive] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [appLoading, setAppLoading] = useState(true);
@@ -55,10 +61,11 @@ export default function App() {
             setActiveClassId={clasesHook.setActiveClassId}
             onRefreshClases={handleRefreshClases}
             showToast={showToast}
+            onNavigate={handleNavigate}
           />
         );
       case 'evaluacion':
-        return <EvaluacionDashboard activeClassId={clasesHook.activeClassId} showToast={showToast} />;
+        return <EvaluacionDashboard activeClassId={clasesHook.activeClassId} showToast={showToast} navParams={navParams} />;
       case 'seguimiento':
         return (
           <Seguimiento 
@@ -66,6 +73,7 @@ export default function App() {
             activeClassId={clasesHook.activeClassId} 
             setActiveClassId={clasesHook.setActiveClassId} 
             showToast={showToast} 
+            navParams={navParams}
           />
         );
       default:
@@ -223,20 +231,20 @@ export default function App() {
 
           <nav className="sidebar-nav">
             <button className={`btn nav-item ${currentView === 'clases' ? 'active' : ''}`}
-              onClick={() => { setCurrentView('clases'); setIsSidebarActive(false); }}>
+              onClick={() => { handleNavigate('clases'); setIsSidebarActive(false); }}>
               <Home size={18} /> Mis Aulas &amp; Registro
             </button>
             <button className={`btn nav-item ${!clasesHook.activeClassId ? 'nav-class-locked' : ''} ${currentView === 'evaluacion' ? 'active' : ''}`}
               onClick={() => {
                 if (!clasesHook.activeClassId) { showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning'); return; }
-                setCurrentView('evaluacion'); setIsSidebarActive(false);
+                handleNavigate('evaluacion'); setIsSidebarActive(false);
               }}>
               <Clipboard size={18} /> Rúbricas &amp; Evaluación
             </button>
             <button className={`btn nav-item ${!clasesHook.activeClassId ? 'nav-class-locked' : ''} ${currentView === 'seguimiento' ? 'active' : ''}`}
               onClick={() => {
                 if (!clasesHook.activeClassId) { showToast('Debe seleccionar o registrar una clase activa en "Mis Aulas"', 'warning'); return; }
-                setCurrentView('seguimiento'); setIsSidebarActive(false);
+                handleNavigate('seguimiento'); setIsSidebarActive(false);
               }}>
               <BarChart2 size={18} /> Seguimiento &amp; Informes
             </button>
@@ -251,7 +259,7 @@ export default function App() {
               </div>
             </div>
             <button className="btn btn-icon-only btn-logout" title="Cerrar Sesión"
-              onClick={() => auth.handleLogout(() => { clasesHook.setClases([]); clasesHook.setActiveClassId(''); setCurrentView('clases'); })}>
+              onClick={() => auth.handleLogout(() => { clasesHook.setClases([]); clasesHook.setActiveClassId(''); handleNavigate('clases'); })}>
               <LogOut size={16} />
             </button>
           </div>

@@ -2,7 +2,7 @@
  * Infrastructure Layer — API Client
  * Handles all HTTP communication with the backend.
  */
-const BASE_URL = '';
+const BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function getHeaders(extraHeaders = {}, includeJsonContentType = true) {
   const headers = includeJsonContentType
